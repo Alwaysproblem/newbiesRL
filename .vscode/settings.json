@@ -1,0 +1,19 @@
+{
+    "editor.tabSize": 2,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintPath": "pylint",
+    "python.linting.pylintArgs": [
+        "--indent-string=\"  \"",
+        "--rcfile=${workspaceFolder}/.style/.pylintrc",
+        "--disable=missing-docstring,invalid-name",
+    ],
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "yapf", // or "black" here
+    "python.formatting.yapfArgs": [
+        // "--style={based_on_style: google, column_limit: 80, indent_width: 2}",
+        "--style",
+        "{based_on_style: pep8, indent_width: 2, space_between_ending_comma_and_closing_bracket: false}"
+    ],
+    "python.linting.cwd": "${workspaceFolder}"
+}
