@@ -6,7 +6,7 @@ this is a practice for Deep reinforcement learning
 - common lib
 
   ```bash
-  conda install jupyter pandas colorama pylint yapf seaborn scipy scikit-learn tqdm -y
+  conda install jupyter pandas colorama pylint yapf seaborn scipy scikit-learn tqdm tensorboardx tensorboard pillow -y -c conda-forge
   ```
 
 - gym
@@ -32,4 +32,5 @@ this is a practice for Deep reinforcement learning
 
   ```bash
   conda install jax chex optax dm-haiku jaxlib Jraph -c conda-forge
+  pip install coax
   ```
