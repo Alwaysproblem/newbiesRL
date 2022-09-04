@@ -1,5 +1,5 @@
 # RL-try
-this is a practice for Deep reinforcement learning 
+this is a practice for Deep reinforcement learning
 
 ## Enviornment Preparation
 
@@ -34,3 +34,8 @@ this is a practice for Deep reinforcement learning
   conda install jax chex optax dm-haiku jaxlib Jraph -c conda-forge
   pip install coax
   ```
+
+
+## Reference
+
+- TrainMonitor and Generategif modified from [coax](https://github.com/coax-dev/coax)
