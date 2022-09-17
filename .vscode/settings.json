@@ -4,9 +4,7 @@
     "python.linting.pylintEnabled": true,
     "python.linting.pylintPath": "pylint",
     "python.linting.pylintArgs": [
-        "--indent-string=\"  \"",
-        "--rcfile=${workspaceFolder}/.style/.pylintrc",
-        "--disable=missing-docstring,invalid-name",
+        "--rcfile=${workspaceFolder}/.style/.pylintrc"
     ],
     "editor.formatOnSave": true,
     "python.formatting.provider": "yapf", // or "black" here
