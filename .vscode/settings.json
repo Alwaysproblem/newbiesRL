@@ -11,7 +11,8 @@
     "python.formatting.yapfArgs": [
         // "--style={based_on_style: google, column_limit: 80, indent_width: 2}",
         "--style",
-        "{based_on_style: pep8, indent_width: 2, space_between_ending_comma_and_closing_bracket: false}"
+        "${workspaceFolder}/.style/.style.yapf"
     ],
-    "python.linting.cwd": "${workspaceFolder}"
+    "python.linting.cwd": "${workspaceFolder}",
+    "python.pythonPath": "/Users/yongxiyang/opt/anaconda3/envs/tf1cpu/bin/python"
 }
