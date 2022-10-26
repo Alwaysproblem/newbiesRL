@@ -1,6 +1,6 @@
 from collections import deque
 from copy import deepcopy
-import warnings # pylint: disable=unused-import
+import warnings  # noqa: F401
 import numpy as np
 
 
@@ -8,18 +8,18 @@ class ReplayBuffer():
 
   def __init__(self, max_size=0) -> None:
     self.max_size = max_size
-    self.q = deque([], maxlen=max_size)
+    self.q: deque = deque([], maxlen=max_size)
 
-  def sample_from(self,
-                  num_samples=1,
-                  drop_samples=False,
-                  sample_distribution_fn=None):
+  def sample_from(
+      self, num_samples=1, drop_samples=False, sample_distribution_fn=None
+  ):
     selected_sample_ids = []
     selected_sample_ids = np.random.choice(
         range(len(self.q)),
         size=(num_samples,),
         replace=True,
-        p=sample_distribution_fn() if sample_distribution_fn else None)
+        p=sample_distribution_fn() if sample_distribution_fn else None
+    )
 
     samples = [deepcopy(self.q[idx]) for idx in selected_sample_ids]
 
@@ -32,7 +32,7 @@ class ReplayBuffer():
   def enqueue(self, sample):
     if not self.isfull():
       return self.q.append(sample)
-    # warnings.warn("the buffer is full, the first sample will be dropped.")
+    warnings.warn("the buffer is full, the first sample will be dropped.")
     self.q.popleft()
     return self.q.append(sample)
 

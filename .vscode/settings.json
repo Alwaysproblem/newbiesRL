@@ -1,11 +1,13 @@
 {
   "editor.tabSize": 2,
   "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
-  "python.linting.pylintPath": "pylint",
-  "python.linting.pylintArgs": [
-    "--rcfile=${workspaceFolder}/.pylintrc"
-  ],
+  // "python.linting.pylintEnabled": true,
+  // "python.linting.pylintPath": "pylint",
+  // "python.linting.pylintArgs": [
+  //   "--rcfile=${workspaceFolder}/.pylintrc"
+  // ],
+  "python.linting.flake8Enabled": true,
+  "python.linting.flake8Path": "flake8",
   "editor.formatOnSave": true,
   "python.formatting.provider": "yapf",
   "python.formatting.yapfArgs": [
@@ -13,5 +15,5 @@
     "${workspaceFolder}/.style.yapf"
   ],
   "python.linting.cwd": "${workspaceFolder}",
-  "python.pythonPath": "/Users/yongxiyang/opt/anaconda3/envs/tf1cpu/bin/python"
+  "python.pythonPath": "/Users/yongxiyang/opt/anaconda3/envs/gym-tf2/bin/python"
 }
