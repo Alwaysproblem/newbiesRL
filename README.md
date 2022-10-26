@@ -17,13 +17,13 @@ this is a practice for Deep reinforcement learning
     ```
 
 - gym + pytorch
-  
+
   ```bash
   conda install pytorch torchvision torchaudio -c pytorch
   ```
 
 - gym + TF2
-  
+
   ```bash
   conda install tensorflow -c conda-forge
   ```
