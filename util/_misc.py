@@ -4,12 +4,14 @@ import logging
 from PIL import Image
 
 
-def generate_gif(env,
-                 filepath,
-                 policy=None,
-                 resize_to=None,
-                 duration=50,
-                 max_episode_steps=None):
+def generate_gif(
+    env,
+    filepath,
+    policy=None,
+    resize_to=None,
+    duration=50,
+    max_episode_steps=None
+):
   r"""
     Store a gif from the episode frames.
     Parameters
@@ -73,11 +75,13 @@ def generate_gif(env,
 
   # generate gif
   os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
-  frames[0].save(fp=filepath,
-                 format='GIF',
-                 append_images=frames[1:],
-                 save_all=True,
-                 duration=duration,
-                 loop=0)
+  frames[0].save(
+      fp=filepath,
+      format='GIF',
+      append_images=frames[1:],
+      save_all=True,
+      duration=duration,
+      loop=0
+  )
 
   logger.info("recorded episode to: {}".format(filepath))

@@ -95,16 +95,19 @@ class TrainMonitor(Wrapper):
     dt_ms : float
         The average wall time of a single step, in milliseconds.
     """
-  _COUNTER_ATTRS = ('T', 'ep', 't', 'G', 'avg_G', '_n_avg_G', '_ep_starttime',
-                    '_ep_metrics', '_ep_actions', '_tensorboard_dir',
-                    '_period')
+  _COUNTER_ATTRS = (
+      'T', 'ep', 't', 'G', 'avg_G', '_n_avg_G', '_ep_starttime', '_ep_metrics',
+      '_ep_actions', '_tensorboard_dir', '_period'
+  )
 
-  def __init__(self,
-               env,
-               tensorboard_dir=None,
-               tensorboard_write_all=False,
-               log_all_metrics=False,
-               smoothing=10):
+  def __init__(
+      self,
+      env,
+      tensorboard_dir=None,
+      tensorboard_write_all=False,
+      log_all_metrics=False,
+      smoothing=10
+  ):
 
     super().__init__(env)
     self.log_all_metrics = log_all_metrics
@@ -187,9 +190,9 @@ class TrainMonitor(Wrapper):
     # write metrics to tensoboard
     if self.tensorboard is not None and self.tensorboard_write_all:
       for name, metric in metrics.items():
-        self.tensorboard.add_scalar(str(name),
-                                    float(metric),
-                                    global_step=self.T)
+        self.tensorboard.add_scalar(
+            str(name), float(metric), global_step=self.T
+        )
 
     # compute episode averages
     for k, v in metrics.items():
@@ -246,7 +249,8 @@ class TrainMonitor(Wrapper):
     if not re.match(r'.*/\d{8}_\d{6}$', tensorboard_dir):
       tensorboard_dir = os.path.join(
           tensorboard_dir,
-          datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
+          datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+      )
 
     # only set/update if necessary
     if tensorboard_dir != getattr(self, '_tensorboard_dir', None):
@@ -263,29 +267,34 @@ class TrainMonitor(Wrapper):
           'episode/avg_step_duration_ms': self.dt_ms
       }
       for name, metric in metrics.items():
-        self.tensorboard.add_scalar(str(name),
-                                    float(metric),
-                                    global_step=self.T)
+        self.tensorboard.add_scalar(
+            str(name), float(metric), global_step=self.T
+        )
       if self._ep_actions:
         if isinstance(self.action_space, Discrete):
           bins = np.arange(self.action_space.n + 1)
         else:
           bins = 'auto'  # see also: np.histogram_bin_edges.__doc__
-        self.tensorboard.add_histogram(tag='actions',
-                                       values=self._ep_actions.values,
-                                       global_step=self.T,
-                                       bins=bins)
+        self.tensorboard.add_histogram(
+            tag='actions',
+            values=self._ep_actions.values,
+            global_step=self.T,
+            bins=bins
+        )
       if self._ep_metrics and not self.tensorboard_write_all:
         for k, (x, n) in self._ep_metrics.items():
           self.tensorboard.add_scalar(str(k), float(x) / n, global_step=self.T)
       self.tensorboard.flush()
 
   def _write_episode_logs(self):
-    metrics = (f'{k:s}: {float(x) / n:.3g}'
-               for k, (x, n) in self._ep_metrics.items()
-               if (self.log_all_metrics or str(k).endswith('/loss')
-                   or str(k).endswith('/entropy') or str(k).endswith('/kl_div')
-                   or str(k).startswith('throughput/')))
+    metrics = (
+        f'{k:s}: {float(x) / n:.3g}' for k, (x, n) in self._ep_metrics.items()
+        if (
+            self.log_all_metrics or str(k).endswith('/loss') or
+            str(k).endswith('/entropy') or str(k).endswith('/kl_div') or
+            str(k).startswith('throughput/')
+        )
+    )
 
     if self.tensorboard is not None:
       metrics = {
@@ -296,18 +305,20 @@ class TrainMonitor(Wrapper):
           'episode/avg_step_duration_ms': self.dt_ms
       }
       for name, metric in metrics.items():
-        self.tensorboard.add_scalar(str(name),
-                                    float(metric),
-                                    global_step=self.T)
+        self.tensorboard.add_scalar(
+            str(name), float(metric), global_step=self.T
+        )
       if self._ep_actions:
         if isinstance(self.action_space, Discrete):
           bins = np.arange(self.action_space.n + 1)
         else:
           bins = 'auto'  # see also: np.histogram_bin_edges.__doc__
-        self.tensorboard.add_histogram(tag='actions',
-                                       values=self._ep_actions.values,
-                                       global_step=self.T,
-                                       bins=bins)
+        self.tensorboard.add_histogram(
+            tag='actions',
+            values=self._ep_actions.values,
+            global_step=self.T,
+            bins=bins
+        )
       if self._ep_metrics and not self.tensorboard_write_all:
         for k, (x, n) in self._ep_metrics.items():
           self.tensorboard.add_scalar(str(k), float(x) / n, global_step=self.T)
@@ -341,7 +352,9 @@ class TrainMonitor(Wrapper):
         counter : dict
             The dict that contains the counters.
         """
-    if not (isinstance(counters, dict)
-            and set(counters) == set(self._COUNTER_ATTRS)):
+    if not (
+        isinstance(counters, dict) and
+        set(counters) == set(self._COUNTER_ATTRS)
+    ):
       raise TypeError(f"invalid counters dict: {counters}")
     self.__setstate__(counters)
