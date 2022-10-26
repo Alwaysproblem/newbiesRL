@@ -10,7 +10,7 @@ from gym import Wrapper
 from gym.spaces import Discrete
 from tensorboardX import SummaryWriter
 
-__all__ = ('TrainMonitor',)
+__all__ = ('TrainMonitor', )
 
 
 class StreamingSample:
@@ -290,9 +290,9 @@ class TrainMonitor(Wrapper):
     metrics = (
         f'{k:s}: {float(x) / n:.3g}' for k, (x, n) in self._ep_metrics.items()
         if (
-            self.log_all_metrics or str(k).endswith('/loss') or
-            str(k).endswith('/entropy') or str(k).endswith('/kl_div') or
-            str(k).startswith('throughput/')
+            self.log_all_metrics or str(k).endswith('/loss')
+            or str(k).endswith('/entropy') or str(k).endswith('/kl_div')
+            or str(k).startswith('throughput/')
         )
     )
 
@@ -353,8 +353,8 @@ class TrainMonitor(Wrapper):
             The dict that contains the counters.
         """
     if not (
-        isinstance(counters, dict) and
-        set(counters) == set(self._COUNTER_ATTRS)
+        isinstance(counters, dict)
+        and set(counters) == set(self._COUNTER_ATTRS)
     ):
       raise TypeError(f"invalid counters dict: {counters}")
     self.__setstate__(counters)

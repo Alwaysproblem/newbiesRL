@@ -16,7 +16,7 @@ class ReplayBuffer():
     selected_sample_ids = []
     selected_sample_ids = np.random.choice(
         range(len(self.q)),
-        size=(num_samples,),
+        size=(num_samples, ),
         replace=True,
         p=sample_distribution_fn() if sample_distribution_fn else None
     )
