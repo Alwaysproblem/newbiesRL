@@ -11,11 +11,11 @@ jobs:
       - uses: reviewdog/action-setup@v1
         with:
           reviewdog_version: latest # Optional. [latest,nightly,v.X.Y.Z]
-      - name: Run reviewdog
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          reviewdog -reporter=github-pr-review -runners=golint,govet
+      # - name: Run reviewdog
+      #   env:
+      #     REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     reviewdog -reporter=github-pr-review -runners=golint,govet
 
       - name: shellcheck
         uses: reviewdog/action-shellcheck@v1
