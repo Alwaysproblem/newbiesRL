@@ -1,6 +1,7 @@
 # RL-try
-this is a practice for Deep reinforcement learning
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
+This is a practice for Deep reinforcement learning
 ## Enviornment Preparation
 
 - common lib
