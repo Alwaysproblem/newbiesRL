@@ -9,8 +9,9 @@ from util.wrappers import TrainMonitor
 from util.buffer import ReplayBuffer
 from util.agent import Agent
 
-Experience = namedtuple("experience",
-                        ["state", "action", "reward", "next_state", "done"])
+Experience = namedtuple(
+    "Experience", ["state", "action", "reward", "next_state", "done"]
+)
 
 
 class Q(nn.Module):
@@ -22,7 +23,7 @@ class Q(nn.Module):
 
     self.hidden_layers = [
         (nn.Linear(in_size, out_size), nn.GELU())
-        for in_size, out_size in zip((state_dim,) +
+        for in_size, out_size in zip((state_dim, ) +
                                      self.hidden_size, self.hidden_size)
     ]
     self.output_layer = nn.Linear(self.hidden_layers[-1], action_space)
@@ -40,12 +41,9 @@ class Q(nn.Module):
 
 class DQNAgent(Agent):
 
-  def __init__(self,
-               state_dims,
-               action_space,
-               gamma=0.99,
-               lr=0.001,
-               batch_size=10):
+  def __init__(
+      self, state_dims, action_space, gamma=0.99, lr=0.001, batch_size=10
+  ):
     self.state_dims = state_dims
     self.action_space = action_space
     self.gamma = gamma
@@ -74,13 +72,15 @@ class DQNAgent(Agent):
     with torch.no_grad():
       next_actions = F.one_hot(self.Q(next_states).argmax())
       target_qvalue = rewards + (
-          1 - dones) * self.gamma * next_actions * self.Q_target(next_states)
+          1 - dones
+      ) * self.gamma * next_actions * self.Q_target(next_states)
 
     return F.mse_loss(self.Q.Q_function(states, actions), target_qvalue)
 
   def learn_from(self):
-    experiences = self.replay_buffer.sample_from(self.batch_size,
-                                                 drop_samples=True)
+    experiences = self.replay_buffer.sample_from(
+        self.batch_size, drop_samples=True
+    )
     loss = self._cal_q_loss(experiences=experiences)
     self.optimizer.zero_grad()
     loss.backward()
@@ -109,7 +109,7 @@ def main():
       env.render()
 
       if done:
-        observation = env.reset()
+        observation = env.reset()  # noqa: F841
     generate_gif(env, filepath=f"random{t}.gif")
 
   env.close()
