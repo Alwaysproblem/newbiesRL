@@ -7,14 +7,14 @@ This is a practice for Deep reinforcement learning
 - common lib
 
   ```bash
-  conda install jupyter pandas colorama pylint yapf seaborn scipy scikit-learn tqdm tensorboardx tensorboard pillow -y -c conda-forge
+  conda install jupyter pandas colorama pylint yapf seaborn scipy scikit-learn tqdm tensorboardx>=2.5 tensorboard pillow -y -c conda-forge
   ```
 
 - gym
   - install gym
 
     ```bash
-    conda install gym pyglet -c conda-forge
+    conda install gym pyglet pygame -c conda-forge
     ```
 
 - gym + pytorch

@@ -9,6 +9,5 @@
   ],
   "python.linting.cwd": "${workspaceFolder}",
   "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": ["--rcfile=${workspaceFolder}/.pylintrc"],
-  "python.linting.mypyEnabled": true
+  "python.linting.pylintArgs": ["--rcfile=${workspaceFolder}/.pylintrc"]
 }

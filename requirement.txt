@@ -1,0 +1,14 @@
+pandas
+colorama
+seaborn
+scipy
+scikit-learn
+tqdm
+gym
+pyglet
+pygame
+tensorboardx>=2.5.0
+tensorboard
+pillow
+numpy>=1.24.2
+pre-commit

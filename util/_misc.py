@@ -2,6 +2,7 @@
 import os
 import logging
 
+import numpy as np
 from PIL import Image
 from .wrappers import TrainMonitor
 
@@ -44,15 +45,23 @@ def generate_gif(
   if isinstance(env, TrainMonitor):
     env = env.env  # unwrap to strip off TrainMonitor
 
+  s, _ = env.reset()
+
+  # check if render_mode is set to 'rbg_array'
+  if not (
+      env.render_mode == 'rgb_array' or isinstance(env.render(), np.ndarray)
+  ):
+    raise RuntimeError('Cannot generate GIF if env.render_mode != `rgb_array`.')
+
   # collect frames
   frames = []
   s = env.reset()
   for _ in range(max_episode_steps):
     a = env.action_space.sample() if policy is None else policy(s)
-    s_next, _, done, _ = env.step(a)
+    s_next, _, done, *_ = env.step(a)
 
     # store frame
-    frame = env.render(mode='rgb_array')
+    frame = env.render()
     frame = Image.fromarray(frame)
     frame = frame.convert('P', palette=Image.ADAPTIVE)
     if resize_to is not None:
@@ -68,7 +77,7 @@ def generate_gif(
     s = s_next
 
   # store last frame
-  frame = env.render(mode='rgb_array')
+  frame = env.render()
   frame = Image.fromarray(frame)
   frame = frame.convert('P', palette=Image.ADAPTIVE)
   if resize_to is not None:

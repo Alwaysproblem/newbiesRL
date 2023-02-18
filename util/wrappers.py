@@ -166,7 +166,8 @@ class TrainMonitor(Wrapper):
 
   def step(self, action):
     self._ep_actions.append(action)
-    s_next, r, done, info = self.env.step(action)
+    s_next, r, done, truncated, info = self.env.step(action)
+
     if info is None:
       info = {}
     info['monitor'] = {'T': self.T, 'ep': self.ep}
@@ -178,7 +179,7 @@ class TrainMonitor(Wrapper):
         self._n_avg_G += 1.
       self.avg_G += (self.G - self.avg_G) / self._n_avg_G
 
-    return s_next, r, done, info
+    return s_next, r, done, truncated, info
 
   def record_metrics(self, metrics):
     r"""
