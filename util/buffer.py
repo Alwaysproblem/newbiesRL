@@ -1,10 +1,12 @@
+"""The buffer protocol described here"""
 from collections import deque
 from copy import deepcopy
-import warnings  # noqa: F401
+import warnings
 import numpy as np
 
 
 class ReplayBuffer():
+  """Replay Buffer for DQN training"""
 
   def __init__(self, max_size=0) -> None:
     self.max_size = max_size

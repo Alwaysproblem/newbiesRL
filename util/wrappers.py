@@ -1,3 +1,4 @@
+"""Some wrappers for gym environment."""
 import os
 import re
 import datetime
@@ -14,6 +15,8 @@ __all__ = ('TrainMonitor', )
 
 
 class StreamingSample:
+  # pylint: disable=line-too-long
+  """Samples are being produced by a wrapped environment at some point in time."""
 
   def __init__(self, maxlen, random_seed=None):
     self._deque = deque(maxlen=maxlen)
@@ -47,7 +50,9 @@ class StreamingSample:
     return bool(self._deque)
 
 
+#pylint: disable=invalid-name
 class TrainMonitor(Wrapper):
+  # pylint: disable=line-too-long
   r"""
     Environment wrapper for monitoring the training process.
     This wrapper logs some diagnostics at the end of each episode and it also gives us some handy
@@ -159,9 +164,9 @@ class TrainMonitor(Wrapper):
       return np.nan
     return self.G / self.t
 
-  def step(self, a):
-    self._ep_actions.append(a)
-    s_next, r, done, info = self.env.step(a)
+  def step(self, action):
+    self._ep_actions.append(action)
+    s_next, r, done, info = self.env.step(action)
     if info is None:
       info = {}
     info['monitor'] = {'T': self.T, 'ep': self.ep}
@@ -185,7 +190,7 @@ class TrainMonitor(Wrapper):
             A dict of metrics, of type ``{name <str>: value <float>}``.
         """
     if not isinstance(metrics, Mapping):
-      raise TypeError("metrics must be a Mapping")
+      raise TypeError('metrics must be a Mapping')
 
     # write metrics to tensoboard
     if self.tensorboard is not None and self.tensorboard_write_all:
@@ -356,5 +361,5 @@ class TrainMonitor(Wrapper):
         isinstance(counters, dict)
         and set(counters) == set(self._COUNTER_ATTRS)
     ):
-      raise TypeError(f"invalid counters dict: {counters}")
+      raise TypeError(f'invalid counters dict: {counters}')
     self.__setstate__(counters)

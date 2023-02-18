@@ -1,7 +1,9 @@
+"""Some basic helper function"""
 import os
 import logging
 
 from PIL import Image
+from .wrappers import TrainMonitor
 
 
 def generate_gif(
@@ -12,6 +14,7 @@ def generate_gif(
     duration=50,
     max_episode_steps=None
 ):
+  # pylint: disable=line-too-long
   r"""
     Store a gif from the episode frames.
     Parameters
@@ -38,16 +41,15 @@ def generate_gif(
   max_episode_steps = max_episode_steps \
       or getattr(getattr(env, 'spec'), 'max_episode_steps', 10000)
 
-  from .wrappers import TrainMonitor
   if isinstance(env, TrainMonitor):
     env = env.env  # unwrap to strip off TrainMonitor
 
   # collect frames
   frames = []
   s = env.reset()
-  for t in range(max_episode_steps):
+  for _ in range(max_episode_steps):
     a = env.action_space.sample() if policy is None else policy(s)
-    s_next, r, done, info = env.step(a)
+    s_next, _, done, _ = env.step(a)
 
     # store frame
     frame = env.render(mode='rgb_array')
@@ -55,7 +57,7 @@ def generate_gif(
     frame = frame.convert('P', palette=Image.ADAPTIVE)
     if resize_to is not None:
       if not (isinstance(resize_to, tuple) and len(resize_to) == 2):
-        raise TypeError("expected a tuple of size 2, resize_to=(w, h)")
+        raise TypeError('expected a tuple of size 2, resize_to=(w, h)')
       frame = frame.resize(resize_to)
 
     frames.append(frame)
@@ -84,4 +86,4 @@ def generate_gif(
       loop=0
   )
 
-  logger.info("recorded episode to: {}".format(filepath))
+  logger.info('recorded episode to: %s', filepath)
