@@ -18,3 +18,6 @@ class Agent():
 
   def learn_from(self, other):
     raise NotImplementedError()
+
+  def take_action(self, state):
+    raise NotImplementedError()
