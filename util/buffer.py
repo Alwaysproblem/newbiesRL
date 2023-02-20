@@ -1,21 +1,30 @@
 """The buffer protocol described here"""
 from collections import deque
+from collections import namedtuple
 from copy import deepcopy
 import warnings
 import numpy as np
 
+Experience = namedtuple(
+    "Experience", ["state", "action", "reward", "next_state", "done"]
+)
 
 class ReplayBuffer():
   """Replay Buffer for DQN training"""
 
-  def __init__(self, max_size=0) -> None:
+  def __init__(self, max_size=None) -> None:
     self.max_size = max_size
     self.q: deque = deque([], maxlen=max_size)
 
   def sample_from(
-      self, num_samples=1, drop_samples=False, sample_distribution_fn=None
+      self, sample_ratio=None, num_samples=1, drop_samples=False, sample_distribution_fn=None
   ):
-    selected_sample_ids = []
+    """Sample a batch of experiences from the replay buffer"""
+    if not self.q:
+      raise ValueError("please use `enqueue` before `sample_from`")
+    if sample_ratio:
+      num_samples = max(int(len(self.q) * sample_ratio), 1)
+
     selected_sample_ids = np.random.choice(
         range(len(self.q)),
         size=(num_samples, ),
@@ -27,7 +36,8 @@ class ReplayBuffer():
 
     if drop_samples:
       for idx in selected_sample_ids:
-        del self.q[idx]
+        self.q[idx] = None
+      self.delete_none()
 
     return samples
 
@@ -51,6 +61,9 @@ class ReplayBuffer():
     if self.max_size:
       return len(self) >= self.max_size
     return False
+
+  def delete_none(self):
+    self.q = deque([sample for sample in self.q if sample is not None])
 
   def __repr__(self) -> str:
     return repr(self.q)

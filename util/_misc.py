@@ -55,11 +55,11 @@ def generate_gif(
 
   # collect frames
   frames = []
-  s = env.reset()
+  reward = 0
+  s, _ = env.reset()
   for _ in range(max_episode_steps):
     a = env.action_space.sample() if policy is None else policy(s)
-    s_next, _, done, *_ = env.step(a)
-
+    s_next, r, done, *_ = env.step(a)
     # store frame
     frame = env.render()
     frame = Image.fromarray(frame)
@@ -73,6 +73,8 @@ def generate_gif(
 
     if done:
       break
+
+    reward += r
 
     s = s_next
 
@@ -94,5 +96,5 @@ def generate_gif(
       duration=duration,
       loop=0
   )
-
+  logger.info(f"rewards: {reward}")
   logger.info('recorded episode to: %s', filepath)
