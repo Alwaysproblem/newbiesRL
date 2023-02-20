@@ -14,7 +14,7 @@ class Q(nn.Module):
   def __init__(self, state_dim, action_space, hidden_size=None):
     super().__init__()
     self.action_space = action_space
-    self.hidden_size = ((5, 5, 5) if not hidden_size else hidden_size)
+    self.hidden_size = ((20, 20, 20) if not hidden_size else hidden_size)
 
     self.hidden_layers = [
         (nn.Linear(in_size, out_size), nn.ReLU())
@@ -35,6 +35,7 @@ class Q(nn.Module):
 
 
 class DQNAgent(Agent):
+  """DQN Agent"""
 
   def __init__(
       self,
@@ -65,11 +66,12 @@ class DQNAgent(Agent):
 
   def call(self, state):
     with torch.no_grad():
-      table = self.q(torch.Tensor(state))
-      action = table.argmax()
-    return action.item()
+      # table = self.q.eval(torch.Tensor(state))
+      table = self.q.forward(torch.Tensor(state))
+      action = table.argmax().item()
+    return action
 
-  def explore(self, state):
+  def explore(self, state):  #pylint: disable=unused-argument
     return np.random.choice(range(self.action_space))
 
   def _cal_q_loss(self, experiences):
@@ -81,12 +83,12 @@ class DQNAgent(Agent):
 
     with torch.no_grad():
       target_qvalue = rewards + (1 - dones) * self.gamma * torch.max(
-          self.q_target(next_states), dim=1, keepdim=True
+          self.q_target.forward(next_states), dim=1, keepdim=True
       )[0]
 
-    actions_onehot = F.one_hot(
-        actions.to(torch.int64).squeeze(), self.action_space
-    )
+      actions_onehot = F.one_hot(
+          actions.to(torch.long).squeeze(), self.action_space
+      )
     q_values = torch.sum(
         self.q.q_value(states, actions_onehot), axis=1, keepdim=True
     )
@@ -95,7 +97,9 @@ class DQNAgent(Agent):
 
   def _learn(self):
     experiences = self.replay_buffer.sample_from(
-        sample_ratio=self.sample_ratio, drop_samples=self.forget_experience
+        sample_ratio=self.sample_ratio,
+        num_samples=self.batch_size,
+        drop_samples=self.forget_experience
     )
     loss = self._cal_q_loss(experiences=experiences)
     self.optimizer.zero_grad()
@@ -115,11 +119,10 @@ class DQNAgent(Agent):
   def take_action(self, state, epsilon=None):
     if not epsilon:
       epsilon = self.epsilon
-    if np.random.random(size=()) < self.epsilon:
+    if np.random.random(size=()) < epsilon:
       action = self.explore(state)
     else:
-      with torch.no_grad():
-        action = torch.argmax(self.q(torch.Tensor(state))).numpy()
+      action = self.call(state)
     return action
 
   def save(self, path):
