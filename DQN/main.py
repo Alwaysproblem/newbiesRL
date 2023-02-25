@@ -1,62 +1,97 @@
 """main executable file for DQN"""
 import logging
 import gym
+import torch
+import numpy as np
 from util import generate_gif
 from util.wrappers import TrainMonitor
 from util.buffer import Experience
-from DQN.dqn_torch import DQNAgent as DQN_torch
+from collections import deque
+# pylint: disable=invalid-name
+from DQN.dqn import DQNAgent as DQN_torch
+# from DQN.dqn_torch import DQNAgent as DQN_torch
 
 DQNAgent = DQN_torch
 logging.basicConfig(level=logging.INFO)
 
+torch.manual_seed(0)
+np.random.seed(0)
+
 EPSILON_DECAY_STEPS = 100
 
 
-def main():
+def main(
+    n_episodes=2000, max_t=200, eps_start=1.0, eps_end=0.01, eps_decay=0.996
+):
+  # pylint: disable=line-too-long
+  """Deep Q-Learning
+
+    Params
+    ======
+        n_episodes (int): maximum number of training epsiodes
+        max_t (int): maximum number of timesteps per episode
+        eps_start (float): starting value of epsilon, for epsilon-greedy action selection
+        eps_end (float): minimum value of epsilon
+        eps_decay (float): mutiplicative factor (per episode) for decreasing epsilon
+
+    """
+  scores = []  # list containing score from each episode
+  scores_window = deque(maxlen=100)  # last 100 scores
+  eps = eps_start
   env = gym.make("CartPole-v1", render_mode="rgb_array")
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
+  gamma = 0.99
+  lr = 0.001
+  batch_size = 64
+  learn_iteration = 16
+  update_q_target_freq = 4
+  dump_gif_dir = "images/DQN/dqn_{}.gif"
   agent = DQNAgent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
-      lr=0.001,
+      lr=lr,
+      gamma=gamma,
+      batch_size=batch_size,
       forget_experience=False,
-      batch_size=128,
-      gamma=0.9,
-      # sample_ratio = 0.7
   )
+  for i_episode in range(1, n_episodes + 1):
+    state, _ = env.reset()
+    score = 0
+    for t in range(max_t):
+      action = agent.take_action(state=state, epsilon=eps)
+      next_state, reward, done, _, _ = env.step(action)
+      agent.remember(Experience(state, action, reward, next_state, done))
+      agent.learn(learn_iteration)
 
-  epsilon = 0.9
+      state = next_state
+      score += reward
 
-  for t in range(10000):
-    s, info = env.reset()  # pylint: disable=unused-variable
-    epsilon = max(epsilon - epsilon / EPSILON_DECAY_STEPS, 0.1)
-    for _ in range(200):
-      action = agent.take_action(state=s, epsilon=epsilon)
-      s_nxt, reward, done, truncated, info = env.step(action)  # pylint: disable=unused-variable
-      env.render()
-      agent.remember(Experience(s, action, reward, s_nxt, done))
-      loss = agent.learn()
+      if (t * i_episode) % update_q_target_freq:
+        agent.update_targe_q()
 
       if done:
         break
 
-      s = s_nxt
-
-      if t % 50 == 0:
-        agent.update_targe_q()
-
-    print(f"loss: {loss}")
-
-    if t and t % 100 == 0:
+      scores_window.append(score)  ## save the most recent score
+      scores.append(score)  ## sae the most recent score
+      eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+      print(
+          f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
+          end="\r"
+      )
+    if i_episode and i_episode % 100 == 0:
+      print(
+          f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}"
+      )
       generate_gif(
           env,
-          filepath=f"images/DQN/dqn_{t}.gif",
+          filepath=dump_gif_dir.format(i_episode),
           policy=lambda s: agent.take_action(s, 0),
           max_episode_steps=200
       )
 
-  env.close()
+  return scores
 
 
 if __name__ == "__main__":

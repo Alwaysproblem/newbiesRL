@@ -9,6 +9,7 @@ Experience = namedtuple(
     "Experience", ["state", "action", "reward", "next_state", "done"]
 )
 
+
 class ReplayBuffer():
   """Replay Buffer for DQN training"""
 
@@ -17,18 +18,27 @@ class ReplayBuffer():
     self.q: deque = deque([], maxlen=max_size)
 
   def sample_from(
-      self, sample_ratio=None, num_samples=1, drop_samples=False, sample_distribution_fn=None
+      self,
+      sample_ratio=None,
+      num_samples=1,
+      drop_samples=False,
+      sample_distribution_fn=None,
+      replace=True,
   ):
     """Sample a batch of experiences from the replay buffer"""
     if not self.q:
       raise ValueError("please use `enqueue` before `sample_from`")
+
     if sample_ratio:
       num_samples = max(int(len(self.q) * sample_ratio), 1)
+
+    if len(self.q) < num_samples:
+      return []
 
     selected_sample_ids = np.random.choice(
         range(len(self.q)),
         size=(num_samples, ),
-        replace=True,
+        replace=replace,
         p=sample_distribution_fn() if sample_distribution_fn else None
     )
 
