@@ -1,4 +1,5 @@
 """main executable file for DQN"""
+import os
 import logging
 import gym
 import torch
@@ -11,7 +12,7 @@ from collections import deque
 from DQN.dqn import DQNAgent as DQN_torch
 # from DQN.dqn_torch import DQNAgent as DQN_torch
 
-Agent = DQN_torch
+DQNAgent = DQN_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -47,7 +48,7 @@ def main(
   learn_iteration = 16
   update_q_target_freq = 4
   dump_gif_dir = "images/DQN/dqn_{}.gif"
-  agent = Agent(
+  agent = DQNAgent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
       lr=lr,
@@ -76,11 +77,14 @@ def main(
       scores_window.append(score)  ## save the most recent score
       scores.append(score)  ## sae the most recent score
       eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+      print(" " * os.get_terminal_size().columns, end="\r")
       print(
           f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
           end="\r"
       )
+
     if i_episode and i_episode % 100 == 0:
+      print(" " * os.get_terminal_size().columns, end="\r")
       print(
           f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}"
       )
