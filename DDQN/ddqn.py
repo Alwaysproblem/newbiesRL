@@ -148,11 +148,16 @@ class DDQNAgent(Agent):
 
     with torch.no_grad():
       # r + (1 − done) × γ × max(Q(state))
-      labels = rewards + (1 - terminate) * self.gamma * torch.max(
-          self.qnetwork_target.forward(next_states).detach(),
-          dim=1,
+      next_wanted_action = F.one_hot(
+          (torch.argmax(self.qnetwork_local.forward(next_states), dim=1)),
+          self.action_space
+      )
+
+      labels = rewards + (1 - terminate) * self.gamma * torch.sum(
+          self.qnetwork_target.forward(next_states) * next_wanted_action,
+          axis=1,
           keepdim=True
-      )[0]
+      )
 
     loss = self.loss(predicted_targets, labels).to(device)
     self.optimizer.zero_grad()
