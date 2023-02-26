@@ -96,5 +96,5 @@ def generate_gif(
       duration=duration,
       loop=0
   )
-  logger.info(f"rewards: {reward}")
+  logger.info('rewards: %s', reward)
   logger.info('recorded episode to: %s', filepath)
