@@ -129,32 +129,25 @@ class DQNAgent(Agent):
     terminate = torch.from_numpy(np.vstack([e.done for e in experiences])
                                  ).float().to(device)
 
-    ## TODO: compute and minimize the loss
-    # pylint: disable=line-too-long
-    # criterion = torch.nn.HuberLoss()
-    # criterion = torch.nn.MSELoss()
-    # Local model is one which we need to train so it's in training mode
     self.qnetwork_local.train()
-    # pylint: disable=line-too-long
-    # Target model is one with which we need to get our target so it's in evaluation mode
-    # So that when we do a forward pass with target model it does not calculate gradient.
-    # We will update target model weights with soft_update function
     self.qnetwork_target.eval()
-    #shape of output from the model (batch_size,action_dim) = (64,4)
-    # predicted_targets = self.qnetwork_local(states).gather(1,actions)
+
+    # action: [[1]] -> [[0, 1]], onehot encoding for slice the q value.
     actions_onehot = F.one_hot(actions.squeeze(), self.action_space)
+    # Q(status) -> [[0.3, 0.4]]
+    #                 a1   a2
+    # Q(status) * [[0, 1]]:
+    #             [[0, 0.4]]
+    # after sum:
+    #             [[0.4]]
     predicted_targets = torch.sum(
         self.qnetwork_local.forward(states) * actions_onehot,
         axis=1,
         keepdim=True
     )
-    # pylint: disable=line-too-long
-    # with torch.no_grad():
-    #     labels_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
 
-    # # .detach() ->  Returns a new Tensor, detached from the current graph.
-    # labels = rewards + (gamma * labels_next * (1 - terminate))
     with torch.no_grad():
+      # r + (1 − done) × γ × max(Q(state))
       labels = rewards + (1 - terminate) * self.gamma * torch.max(
           self.qnetwork_target.forward(next_states).detach(),
           dim=1,
