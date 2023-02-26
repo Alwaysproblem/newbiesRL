@@ -11,7 +11,7 @@ from collections import deque
 from DQN.dqn import DQNAgent as DQN_torch
 # from DQN.dqn_torch import DQNAgent as DQN_torch
 
-DQNAgent = DQN_torch
+Agent = DQN_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -47,7 +47,7 @@ def main(
   learn_iteration = 16
   update_q_target_freq = 4
   dump_gif_dir = "images/DQN/dqn_{}.gif"
-  agent = DQNAgent(
+  agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
       lr=lr,
