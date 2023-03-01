@@ -11,7 +11,7 @@ from util.buffer import Experience
 class Q(nn.Module):
   """ Actor (Policy) Model."""
 
-  def __init__(self, state_dim, action_space, seed=0, fc1_unit=64, fc2_unit=64):
+  def __init__(self, state_dim, action_space, seed=0, hidden_size=None):
     """
         Initialize parameters and build model.
         Params
@@ -22,19 +22,29 @@ class Q(nn.Module):
             fc1_unit (int): Number of nodes in first hidden layer
             fc2_unit (int): Number of nodes in second hidden layer
         """
-    super().__init__()  ## calls __init__ method of nn.Module class
+    super().__init__()
+    self.action_space = action_space
     self.seed = torch.manual_seed(seed)
-    self.fc1 = nn.Linear(state_dim, fc1_unit)
-    self.fc2 = nn.Linear(fc1_unit, fc2_unit)
-    self.fc3 = nn.Linear(fc2_unit, action_space)
+    self.hidden_size = (64, 64, 64) if not hidden_size else hidden_size
 
-  def forward(self, x):
-    """
-        Build a network that maps state -> action values.
-        """
-    x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
-    return self.fc3(x)
+    # note:  The self.hidden_layers attribute is defined as a list of lists,
+    # note:  but it should be a list of `nn.Sequential` objects.
+    # note:  You can fix this by using `nn.Sequential` to define each layer.
+    # note:  After using `nn.Sequential`, you need to define a list with
+    # note:  `nn.ModuleList` to construct the model graph.
+    self.hidden_layers = nn.ModuleList([
+        nn.Sequential(nn.Linear(in_size, out_size), nn.ReLU())
+        for in_size, out_size in zip((state_dim, ) +
+                                     self.hidden_size, self.hidden_size)
+    ])
+    self.output_layer = nn.Linear(self.hidden_size[-1], action_space)
+
+  def forward(self, state):
+    x = state
+    for hidden_layer in self.hidden_layers:
+      x = hidden_layer(x)
+    x = self.output_layer(x)
+    return x
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
