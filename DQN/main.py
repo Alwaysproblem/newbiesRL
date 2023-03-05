@@ -47,7 +47,7 @@ def main(
   batch_size = 64
   learn_iteration = 16
   update_q_target_freq = 4
-  dump_gif_dir = "images/DQN/dqn_{}.gif"
+
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -56,6 +56,7 @@ def main(
       batch_size=batch_size,
       forget_experience=False,
   )
+  dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
   for i_episode in range(1, n_episodes + 1):
     state, _ = env.reset()
     score = 0
