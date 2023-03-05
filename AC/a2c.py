@@ -170,23 +170,33 @@ class A2CAgent(Agent):
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     with torch.no_grad():
-      next_v_pred = self.critic.forward(next_states[-1])
+      next_v_pred = self.critic.forward(next_states)
     v_preds = self.critic.forward(states).detach()
     n_steps_rets = self.calc_nstep_return(
         rewards=rewards, dones=terminates, next_v_pred=next_v_pred
     )
     advs = n_steps_rets - v_preds
     v_targets = n_steps_rets
-    return advs, v_targets
+    return standardize(advs), v_targets
 
   def calc_nstep_return(self, rewards, dones, next_v_pred):
+    T = len(rewards)  #pylint: disable=invalid-name
     rets = torch.zeros_like(rewards).to(device)
-    if self.n_steps > 0:
-      future_ret = next_v_pred
-      not_dones = 1 - dones
-      for i in reversed(range(self.n_steps)):
-        rets[i] = future_ret = rewards[
-            i] + self.gamma * future_ret * not_dones[i]
+    _ = 1 - dones
+
+    for i in range(T):
+      rets[i] = torch.unsqueeze(
+          self.gamma ** torch.arange(len(rewards[i:min(self.n_steps + i, T)])
+                                     ).to(device),
+          dim=0
+      ) @ rewards[i:min(self.n_steps + i, T)]
+
+    if T > self.n_steps:
+      value_n_steps = self.gamma ** self.n_steps * next_v_pred[self.n_steps:]
+      rets = torch.cat([
+          value_n_steps,
+          torch.zeros(size=(self.n_steps, 1)).to(device)
+      ]) + rets
 
     return rets
 
