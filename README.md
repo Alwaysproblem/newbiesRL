@@ -14,7 +14,7 @@ This is a practice for Deep reinforcement learning
   - install gym
 
     ```bash
-    conda install gym pyglet pygame -c conda-forge
+    conda install gym pyglet pygame gym-box2d -c conda-forge
     ```
 
 - gym + pytorch
