@@ -9,5 +9,48 @@
   ],
   "python.linting.cwd": "${workspaceFolder}",
   "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": ["--rcfile=${workspaceFolder}/.pylintrc"]
+  "python.linting.pylintArgs": [
+    "--rcfile=${workspaceFolder}/.pylintrc"
+  ],
+  "editor.tokenColorCustomizations": {
+    "[*Dark*]": {
+      "comments": {
+        "fontStyle": "italic"
+      },
+      "textMateRules": [
+        {
+          "scope": "meta.function-call.generic.python",
+          "settings": {
+            "fontStyle": "italic"
+          }
+        },
+        {
+          "scope": "variable.parameter.function-call.python",
+          "settings": {
+            "fontStyle": "italic underline"
+          }
+        }
+      ]
+    },
+    "textMateRules": [
+      {
+        "scope": "googletest.failed",
+        "settings": {
+          "foreground": "#f00"
+        }
+      },
+      {
+        "scope": "googletest.passed",
+        "settings": {
+          "foreground": "#0f0"
+        }
+      },
+      {
+        "scope": "googletest.run",
+        "settings": {
+          "foreground": "#0f0"
+        }
+      }
+    ]
+  }
 }
