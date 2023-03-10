@@ -13,7 +13,7 @@ class Agent():
   def explore(self, state):
     raise NotImplementedError()
 
-  def learn(self):
+  def learn(self, *args, **kwds):
     raise NotImplementedError()
 
   def learn_from(self, other):

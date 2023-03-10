@@ -10,6 +10,48 @@ Experience = namedtuple(
 )
 
 
+class Trajectory:
+  # pylint: disable=line-too-long
+  """
+  The Trajectory class is used to store the experiences of a whole trajectory policy.
+
+  The trajectory is a list of experiences, where each experience is a tuple
+  of (state, action, reward, next_state, done).
+
+  The trajectory is a list of experiences, where each experience is a tuple
+  """
+
+  def __init__(self):
+    self.q = deque([])
+
+  def enqueue(self, experience):
+    self.q.append(experience)
+
+  def dequeue(self):
+    pass
+
+  def is_empty(self):
+    return len(self.q) == 0
+
+  def __contain__(self, e):
+    return e in self.q
+
+  def __len__(self):
+    return len(self.q)
+
+  def __getitem__(self, index):
+    return self.q[index]
+
+  def __iter__(self):
+    return iter(self.q)
+
+  def __repr__(self) -> str:
+    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
+
+  def __str__(self) -> str:
+    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
+
+
 class ReplayBuffer():
   """Replay Buffer for DQN training"""
 
@@ -76,7 +118,16 @@ class ReplayBuffer():
     self.q = deque([sample for sample in self.q if sample is not None])
 
   def __repr__(self) -> str:
-    return repr(self.q)
+    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
 
   def __str__(self) -> str:
-    return str(self.q)
+    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
+
+  def __contain__(self, e):
+    return e in self.q
+
+  def __getitem__(self, index):
+    return self.q[index]
+
+  def __iter__(self):
+    return iter(self.q)
