@@ -169,6 +169,19 @@ class A2CAgent(Agent):
     return policy_loss, val_loss
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
+    """calculate the n-stpes advantage and V_target.
+
+    Args:
+        states: the current states, shape [batch size, states shape]
+        rewards: the rewards shape: [batch size, 1]
+        next_states: the next_states after states, shape
+        terminates: this will specify the game status for each states
+
+
+    Returns:
+        advantage : the advantage for action, shape: [batch size, 1]
+        v_targets : the target of value function , shape: [batch size, 1]
+    """
     with torch.no_grad():
       next_v_pred = self.critic.forward(next_states)
     v_preds = self.critic.forward(states).detach()
@@ -185,6 +198,10 @@ class A2CAgent(Agent):
     _ = 1 - dones
 
     for i in range(T):
+      # we generate the vector like `gamma = [[γ⁰, γ¹, γ² ...γⁿ]]`
+      # and gamma x reward (vector) to obtain the value for each timestamp.
+      # There are a few items to make it to N
+      # and we will take account all the items.
       rets[i] = torch.unsqueeze(
           self.gamma ** torch.arange(len(rewards[i:min(self.n_steps + i, T)])
                                      ).to(device),
@@ -192,6 +209,7 @@ class A2CAgent(Agent):
       ) @ rewards[i:min(self.n_steps + i, T)]
 
     if T > self.n_steps:
+      # [[γ⁰, γ¹, γ² ...γⁿ]] x reward.T + γⁿ⁺¹ * V(sₜ₊ₙ₊₁)
       value_n_steps = self.gamma ** self.n_steps * next_v_pred[self.n_steps:]
       rets = torch.cat([
           value_n_steps,
@@ -201,6 +219,19 @@ class A2CAgent(Agent):
     return rets
 
   def calc_gae_advs_v_target(self, states, rewards, next_states, terminates):
+    """calculate the GAE (Generalized Advantage Estimation) and V_target.
+
+    Args:
+        states: the current states, shape [batch size, states shape]
+        rewards: the rewards shape: [batch size, 1]
+        next_states: the next_states after states, shape
+        terminates: this will specify the game status for each states
+
+
+    Returns:
+        advantage : the advantage for action, shape: [batch size, 1]
+        v_targets : the target of value function , shape: [batch size, 1]
+    """
     if self.gae_lambda is None:
       return np.nan
     with torch.no_grad():
@@ -212,6 +243,8 @@ class A2CAgent(Agent):
     return standardize(advs), v_target
 
   def calc_gaes(self, rewards, dones, v_preds):
+    # GAE = ∑ₗ (γλ)ˡδₜ₊ₗ
+    # δₜ₊ₗ = rₜ + γV(sₜ₊₁) − V(sₜ)
     T = len(rewards)  # pylint: disable=invalid-name
     gaes = torch.zeros_like(rewards, device=device)
     future_gae = torch.tensor(0.0, dtype=rewards.dtype, device=device)
