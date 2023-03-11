@@ -50,6 +50,7 @@ def main(
   n_steps = 0
   gae_lambda = 0.9
   clip_eps = 0.2
+  update_old_policy = 10
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -71,7 +72,8 @@ def main(
     state, _ = env.reset()
     score = 0
     traj = Trajectory()
-    agent.update_actor_old()
+    if i_episode and i_episode % update_old_policy == 0:
+      agent.update_actor_old()
     for _ in range(max_t):
       action = agent.take_action(state=state)
       next_state, reward, done, _, _ = env.step(action)
