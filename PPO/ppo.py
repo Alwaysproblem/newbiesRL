@@ -96,8 +96,9 @@ class PPOAgent(Agent):
       forget_experience=True,
       n_steps=0,
       gae_lambda=None,
+      clip_eps=0.2,
       beta=0,
-      seed=0
+      seed=0,
   ):
 
     self.state_dims = state_dims
@@ -111,9 +112,11 @@ class PPOAgent(Agent):
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.beta = beta
+    self.clip_eps = clip_eps
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
+    self.actor_old = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.Adam(
@@ -130,16 +133,6 @@ class PPOAgent(Agent):
 
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
-
-  def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
-    if self.n_steps > 0:
-      return self.calc_nstep_advs_v_target(
-          states, rewards, next_states, terminates
-      )
-    else:
-      return self.calc_gae_advs_v_target(
-          states, rewards, next_states, terminates
-      )
 
   def learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
@@ -159,12 +152,26 @@ class PPOAgent(Agent):
     )
 
     val_loss = self.val_loss(self.critic.forward(states), v_targets)
-    _, action_dist = self.action(state=states)
+    # compute the old policy distribution
+    _, action_dist_old = self.action(state=states, actor_old=True, mode="train")
+    # compute the policy distribution
+    _, action_dist = self.action(state=states, actor_old=False, mode="train")
 
-    policy_loss = torch.mean(
-        -advs * action_dist.log_prob(actions.T).T -
-        self.beta * action_dist.entropy()
+    # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
+    # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
+    importance_ratio = torch.exp(
+        action_dist.log_prob(actions.T) -
+        action_dist_old.log_prob(actions.T).detach()
+    ).T
+
+    # clip it into (1 - ϵ) (1 + ϵ)
+    clip_ratio = torch.clamp(
+        importance_ratio, min=1 - self.clip_eps, max=1 + self.clip_eps
     )
+
+    j_clip = -torch.min(importance_ratio * advs, clip_ratio * advs)
+
+    policy_loss = torch.mean(j_clip - self.beta * action_dist.entropy())
 
     self.actor_optimizer.zero_grad()
     self.critic_optimizer.zero_grad()
@@ -173,6 +180,16 @@ class PPOAgent(Agent):
     self.actor_optimizer.step()
     self.critic_optimizer.step()
     return policy_loss, val_loss
+
+  def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
+    if self.n_steps > 0:
+      return self.calc_nstep_advs_v_target(
+          states, rewards, next_states, terminates
+      )
+    else:
+      return self.calc_gae_advs_v_target(
+          states, rewards, next_states, terminates
+      )
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the n-stpes advantage and V_target.
@@ -254,18 +271,19 @@ class PPOAgent(Agent):
       gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
     return gaes
 
-  def action(self, state, mode="eval"):
+  def action(self, state, mode="eval", actor_old=True):
+    actor = self.actor_old if actor_old else self.actor
     if mode == "train":
-      self.actor.train()
+      actor.train()
     else:
-      self.actor.eval()
+      actor.eval()
 
-    pi = self.actor.forward(state)
+    pi = actor.forward(state)
     dist = Categorical(pi)
     action = dist.sample()
     return action.cpu().data.numpy(), dist
 
-  def take_action(self, state, _=0):
+  def take_action(self, state, actor_old=True, _=0):
     """Returns action for given state as per current policy
         Params
         =======
@@ -275,9 +293,12 @@ class PPOAgent(Agent):
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
-      action_values, *_ = self.action(state)
+      action_values, *_ = self.action(state, actor_old=actor_old)
 
     return action_values.item()
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
+
+  def update_actor_old(self):
+    return self.actor_old.load_state_dict(self.actor.state_dict())
