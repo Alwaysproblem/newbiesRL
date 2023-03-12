@@ -2,6 +2,7 @@ import gym
 from util import generate_gif
 from util.wrappers import TrainMonitor
 
+# env = gym.make("MountainCarContinuous-v0", render_mode="rgb_array")
 env = gym.make("CartPole-v1", render_mode="rgb_array")
 env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
