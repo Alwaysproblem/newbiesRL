@@ -19,7 +19,9 @@ def standardize(v):
 class Actor(nn.Module):
   """ Actor (Policy) Model."""
 
-  def __init__(self, state_dim, action_space, seed=0, fc1_unit=64, fc2_unit=64):
+  def __init__(
+      self, state_dim, action_space, seed=0, fc1_unit=256, fc2_unit=256
+  ):
     """
         Initialize parameters and build model.
         Params
@@ -50,7 +52,7 @@ class Critic(nn.Module):
   """ Critic (Policy) Model."""
 
   def __init__(
-      self, state_dim, action_space=1, seed=0, fc1_unit=64, fc2_unit=64
+      self, state_dim, action_space=1, seed=0, fc1_unit=256, fc2_unit=256
   ):
     """
         Initialize parameters and build model.
@@ -80,7 +82,7 @@ class Critic(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class A2CAgent(Agent):
+class PPOAgent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
@@ -96,8 +98,9 @@ class A2CAgent(Agent):
       forget_experience=True,
       n_steps=0,
       gae_lambda=None,
+      clip_eps=0.2,
       beta=0,
-      seed=0
+      seed=0,
   ):
 
     self.state_dims = state_dims
@@ -111,9 +114,11 @@ class A2CAgent(Agent):
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.beta = beta
+    self.clip_eps = clip_eps
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
+    self.actor_old = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.AdamW(
@@ -143,22 +148,39 @@ class A2CAgent(Agent):
     ).float().to(device)
     terminates = torch.from_numpy(np.vstack([e.done for e in trajectory])
                                   ).float().to(device)
-    if self.n_steps > 0:
-      advs, v_targets = self.calc_nstep_advs_v_target(
-          states, rewards, next_states, terminates
-      )
-    else:
-      advs, v_targets = self.calc_gae_advs_v_target(
-          states, rewards, next_states, terminates
-      )
+
+    advs, v_targets = self.calc_adv_and_v_target(
+        states, rewards, next_states, terminates
+    )
 
     val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
-    _, action_dist = self.action(state=states, mode="train")
+    # compute the old policy distribution
+    with torch.no_grad():
+      _, action_dist_old = self.action(
+          state=states, actor_old=True, mode="eval"
+      )
+      log_prob_old = action_dist_old.log_prob(actions.T).detach()
 
-    policy_loss = torch.mean(
-        -advs.detach() * action_dist.log_prob(actions.T).T -
-        self.beta * action_dist.entropy()
+    # compute the policy distribution
+    _, action_dist = self.action(state=states, actor_old=False, mode="train")
+
+    # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
+    # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
+    importance_ratio = torch.exp(
+        action_dist.log_prob(actions.T) - log_prob_old
+    ).T
+    # importance_ratio = torch.exp(
+    #     action_dist.log_prob(actions.T) - log_prob_old
+    # ).T
+
+    # clip it into (1 - ϵ) (1 + ϵ)
+    clip_ratio = torch.clamp(
+        importance_ratio, min=1 - self.clip_eps, max=1 + self.clip_eps
     )
+
+    j_clip = -torch.min(importance_ratio, clip_ratio) * advs.detach()
+
+    policy_loss = torch.mean(j_clip - self.beta * action_dist.entropy())
 
     self.actor_optimizer.zero_grad()
     self.critic_optimizer.zero_grad()
@@ -167,6 +189,16 @@ class A2CAgent(Agent):
     self.actor_optimizer.step()
     self.critic_optimizer.step()
     return policy_loss, val_loss
+
+  def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
+    if self.n_steps > 0:
+      return self.calc_nstep_advs_v_target(
+          states, rewards, next_states, terminates
+      )
+    else:
+      return self.calc_gae_advs_v_target(
+          states, rewards, next_states, terminates
+      )
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the n-stpes advantage and V_target.
@@ -198,10 +230,6 @@ class A2CAgent(Agent):
     _ = 1 - dones
 
     for i in range(T):
-      # we generate the vector like `gamma = [[γ⁰, γ¹, γ² ...γⁿ]]`
-      # and gamma x reward (vector) to obtain the value for each timestamp.
-      # There are a few items to make it to N
-      # and we will take account all the items.
       rets[i] = torch.unsqueeze(
           self.gamma ** torch.arange(len(rewards[i:min(self.n_steps + i, T)])
                                      ).to(device),
@@ -209,7 +237,6 @@ class A2CAgent(Agent):
       ) @ rewards[i:min(self.n_steps + i, T)]
 
     if T > self.n_steps:
-      # [[γ⁰, γ¹, γ² ...γⁿ]] x reward.T + γⁿ⁺¹ * V(sₜ₊ₙ₊₁)
       value_n_steps = self.gamma ** self.n_steps * next_v_pred[self.n_steps:]
       rets = torch.cat([
           value_n_steps,
@@ -243,8 +270,6 @@ class A2CAgent(Agent):
     return standardize(advs), v_target
 
   def calc_gaes(self, rewards, dones, v_preds):
-    # GAE = ∑ₗ (γλ)ˡδₜ₊ₗ
-    # δₜ₊ₗ = rₜ + γV(sₜ₊₁) − V(sₜ)
     T = len(rewards)  # pylint: disable=invalid-name
     gaes = torch.zeros_like(rewards, device=device)
     future_gae = torch.tensor(0.0, dtype=rewards.dtype, device=device)
@@ -255,18 +280,19 @@ class A2CAgent(Agent):
       gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
     return gaes
 
-  def action(self, state, mode="eval"):
+  def action(self, state, mode="eval", actor_old=True):
+    actor = self.actor_old if actor_old else self.actor
     if mode == "train":
-      self.actor.train()
+      actor.train()
     else:
-      self.actor.eval()
+      actor.eval()
 
-    pi = self.actor.forward(state)
+    pi = actor.forward(state)
     dist = Categorical(pi)
     action = dist.sample()
     return action.cpu().data.numpy(), dist
 
-  def take_action(self, state, _=0):
+  def take_action(self, state, actor_old=True, _=0):
     """Returns action for given state as per current policy
         Params
         =======
@@ -276,9 +302,12 @@ class A2CAgent(Agent):
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
-      action_values, *_ = self.action(state)
+      action_values, *_ = self.action(state, actor_old=actor_old)
 
     return action_values.item()
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
+
+  def update_actor_old(self):
+    return self.actor_old.load_state_dict(self.actor.state_dict())

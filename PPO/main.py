@@ -9,9 +9,9 @@ from util.wrappers import TrainMonitor
 from util.buffer import Experience, Trajectory
 from collections import deque
 # pylint: disable=invalid-name
-from AC.a2c import A2CAgent as A2C_torch
+from PPO.ppo import PPOAgent as PPO_torch
 
-Agent = A2C_torch
+Agent = PPO_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -21,7 +21,7 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000, max_t=2000, eps_start=1.0, eps_end=0.01, eps_decay=0.996
+    n_episodes=20000, max_t=500, eps_start=1.0, eps_end=0.01, eps_decay=0.996
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -38,17 +38,19 @@ def main(
   scores = []  # list containing score from each episode
   scores_window = deque(maxlen=100)  # last 100 scores
   eps = eps_start
-  env = gym.make("LunarLander-v2", render_mode="rgb_array")
   # env = gym.make("CartPole-v1", render_mode="rgb_array")
+  env = gym.make("LunarLander-v2", render_mode="rgb_array")
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.995
+  gamma = 0.7
   lr_actor = 0.002
   lr_critic = 0.002
   batch_size = 64
   n_steps = 0
   gae_lambda = 0.95
+  clip_eps = 0.2
+  update_old_policy = 2
   beta = 0.00001
   agent = Agent(
       state_dims=env.observation_space.shape[0],
@@ -61,13 +63,18 @@ def main(
       n_steps=n_steps,
       gae_lambda=gae_lambda,
       beta=beta,
+      clip_eps=clip_eps,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
+
+  policy_loss, val_loss = torch.Tensor([np.nan]), torch.Tensor([np.nan])
 
   for i_episode in range(1, n_episodes + 1):
     state, _ = env.reset()
     score = 0
     traj = Trajectory()
+    if i_episode and i_episode % update_old_policy == 0:
+      agent.update_actor_old()
     for _ in range(max_t):
       action = agent.take_action(state=state)
       next_state, reward, done, _, _ = env.step(action)
@@ -84,12 +91,15 @@ def main(
       eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
       print(" " * os.get_terminal_size().columns, end="\r")
       print(
-          f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
+          f"\rEpisode {i_episode}\t"
+          f"Average Score {np.mean(scores_window):.2f}\t"
+          f"policy loss {policy_loss.item():.9f}\t"
+          f"value loss {val_loss.item():.2f}",
           end="\r"
       )
 
     agent.remember(traj)
-    agent.learn(traj)
+    policy_loss, val_loss = agent.learn(traj)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")
