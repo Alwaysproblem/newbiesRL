@@ -119,10 +119,10 @@ class PPOAgent(Agent):
     self.actor_old = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
-    self.actor_optimizer = torch.optim.Adam(
+    self.actor_optimizer = torch.optim.AdamW(
         self.actor.parameters(), lr=self.lr_actor
     )
-    self.critic_optimizer = torch.optim.Adam(
+    self.critic_optimizer = torch.optim.AdamW(
         self.critic.parameters(), lr=self.lr_critic
     )
 
@@ -151,29 +151,32 @@ class PPOAgent(Agent):
         states, rewards, next_states, terminates
     )
 
-    val_loss = self.val_loss(self.critic.forward(states), v_targets)
+    val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
     # compute the old policy distribution
     with torch.no_grad():
       _, action_dist_old = self.action(
-        state=states, actor_old=True, mode="eval"
+          state=states, actor_old=True, mode="eval"
       )
       log_prob_old = action_dist_old.log_prob(actions.T).detach()
+
     # compute the policy distribution
     _, action_dist = self.action(state=states, actor_old=False, mode="train")
 
     # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
     # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
     importance_ratio = torch.exp(
-        action_dist.log_prob(actions.T) -
-        log_prob_old
+        action_dist.log_prob(actions.T) - log_prob_old
     ).T
+    # importance_ratio = torch.exp(
+    #     action_dist.log_prob(actions.T) - log_prob_old
+    # ).T
 
     # clip it into (1 - ϵ) (1 + ϵ)
     clip_ratio = torch.clamp(
         importance_ratio, min=1 - self.clip_eps, max=1 + self.clip_eps
     )
 
-    j_clip = -torch.min(importance_ratio, clip_ratio) * advs
+    j_clip = -torch.min(importance_ratio, clip_ratio) * advs.detach()
 
     policy_loss = torch.mean(j_clip - self.beta * action_dist.entropy())
 

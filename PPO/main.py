@@ -43,14 +43,15 @@ def main(
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.95
-  lr_actor = 0.001
-  lr_critic = 0.001
+  gamma = 0.995
+  lr_actor = 0.002
+  lr_critic = 0.002
   batch_size = 64
   n_steps = 0
-  gae_lambda = 0.9
+  gae_lambda = 0.95
   clip_eps = 0.2
-  update_old_policy = 10
+  update_old_policy = 2
+  beta = 0.00001
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -61,7 +62,7 @@ def main(
       forget_experience=False,
       n_steps=n_steps,
       gae_lambda=gae_lambda,
-      beta=0,
+      beta=beta,
       clip_eps=clip_eps,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"

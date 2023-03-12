@@ -116,10 +116,10 @@ class A2CAgent(Agent):
     self.actor = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
-    self.actor_optimizer = torch.optim.Adam(
+    self.actor_optimizer = torch.optim.AdamW(
         self.actor.parameters(), lr=self.lr_actor
     )
-    self.critic_optimizer = torch.optim.Adam(
+    self.critic_optimizer = torch.optim.AdamW(
         self.critic.parameters(), lr=self.lr_critic
     )
 
@@ -152,11 +152,11 @@ class A2CAgent(Agent):
           states, rewards, next_states, terminates
       )
 
-    val_loss = self.val_loss(self.critic.forward(states), v_targets)
-    _, action_dist = self.action(state=states)
+    val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
+    _, action_dist = self.action(state=states, mode="train")
 
     policy_loss = torch.mean(
-        -advs * action_dist.log_prob(actions.T).T -
+        -advs.detach() * action_dist.log_prob(actions.T).T -
         self.beta * action_dist.entropy()
     )
 
