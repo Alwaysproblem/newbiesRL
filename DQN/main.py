@@ -93,7 +93,7 @@ def main(
           env,
           filepath=dump_gif_dir.format(i_episode),
           policy=lambda s: agent.take_action(s, 0),
-          max_episode_steps=200
+          max_episode_steps=max_t
       )
 
   return scores
