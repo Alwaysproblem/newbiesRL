@@ -21,7 +21,7 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=20000, max_t=2000, eps_start=1.0, eps_end=0.01, eps_decay=0.996
+    n_episodes=20000, max_t=500, eps_start=1.0, eps_end=0.01, eps_decay=0.996
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -43,7 +43,7 @@ def main(
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.995
+  gamma = 0.7
   lr_actor = 0.002
   lr_critic = 0.002
   batch_size = 64

@@ -19,7 +19,9 @@ def standardize(v):
 class Actor(nn.Module):
   """ Actor (Policy) Model."""
 
-  def __init__(self, state_dim, action_space, seed=0, fc1_unit=64, fc2_unit=64):
+  def __init__(
+      self, state_dim, action_space, seed=0, fc1_unit=256, fc2_unit=256
+  ):
     """
         Initialize parameters and build model.
         Params
@@ -50,7 +52,7 @@ class Critic(nn.Module):
   """ Critic (Policy) Model."""
 
   def __init__(
-      self, state_dim, action_space=1, seed=0, fc1_unit=64, fc2_unit=64
+      self, state_dim, action_space=1, seed=0, fc1_unit=256, fc2_unit=256
   ):
     """
         Initialize parameters and build model.
