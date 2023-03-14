@@ -48,6 +48,7 @@ class Q(nn.Module):
       x = hidden_layer(x)
     x = self.output_layer(x)
     x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
+    x = F.softmax(x, dim=-1)
     return x
 
 
@@ -180,7 +181,7 @@ class C51Agent(Agent):
         dim=-2
     )
 
-    loss = torch.mean(torch.sum(-m * pos_s_a.log(), dim=1)).to(device)
+    loss = -torch.mean(torch.sum(m * (pos_s_a + 1e-8).log(), dim=-1)).to(device)
     self.optimizer.zero_grad()
     loss.backward()
     self.optimizer.step()
@@ -205,7 +206,7 @@ class C51Agent(Agent):
     # tau_z = (batch, n_atom)
     # tau_z = clip(rₜ + γₜ * zⱼ, v_min, v_max)
     tau_z = torch.clamp(
-        rewards + self.gamma * (1 - terminate) * z.T,
+        rewards + self.gamma * (1 - terminate) @ z.T,
         min=self.v_min,
         max=self.v_max
     )

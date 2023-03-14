@@ -21,7 +21,7 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000, max_t=500, eps_start=1.0, eps_end=0.01, eps_decay=0.996
+    n_episodes=2000, max_t=500, eps_start=1, eps_end=0.001, eps_decay=0.996
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -44,7 +44,7 @@ def main(
   gamma = 0.99
   lr = 0.001
   batch_size = 64
-  learn_iteration = 16
+  learn_iteration = 32
   update_q_target_freq = 4
   n_atoms = 51
   v_min = -20
