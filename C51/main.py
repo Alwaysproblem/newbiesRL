@@ -21,7 +21,7 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000, max_t=500, eps_start=1, eps_end=0.001, eps_decay=0.996
+    n_episodes=2000, max_t=500, eps_start=1, eps_end=0.01, eps_decay=0.996
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -41,10 +41,10 @@ def main(
   env = gym.make("CartPole-v1", render_mode="rgb_array")
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.99
+  gamma = 0.95
   lr = 0.001
   batch_size = 64
-  learn_iteration = 32
+  learn_iteration = 160
   update_q_target_freq = 4
   n_atoms = 51
   v_min = -20
