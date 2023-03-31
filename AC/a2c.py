@@ -152,7 +152,10 @@ class A2CAgent(Agent):
           states, rewards, next_states, terminates
       )
 
-    val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
+    val_loss = self.val_loss(
+        self.critic.forward(states),
+        standardize(v_targets).detach()
+    )
     _, action_dist = self.action(state=states, mode="train")
 
     policy_loss = torch.mean(
