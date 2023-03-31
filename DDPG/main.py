@@ -1,6 +1,7 @@
 """main executable file for DQN"""
 import os
 import logging
+from itertools import repeat
 import gym
 import torch
 import numpy as np
@@ -22,7 +23,12 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000, max_t=200, eps_start=1.0, eps_end=0.01, eps_decay=0.996
+    n_episodes=2000,
+    max_t=200,
+    eps_start=1.0,
+    eps_end=0.01,
+    eps_decay=0.996,
+    score_term_rules=lambda s: False
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -85,7 +91,7 @@ def main(
   for i_episode in range(1, n_episodes + 1):
     state, _ = env.reset()
     score = 0
-    for t in range(max_t):
+    for t, _ in enumerate(repeat(0, max_t)):
       action = agent.take_action(state=state, explore=True, step=t * i_episode)
       next_state, reward, done, _, _ = env.step(action)
       agent.remember(Experience(state, action, reward, next_state, done))
@@ -94,7 +100,7 @@ def main(
       state = next_state
       score += reward
 
-      if done:
+      if done or score_term_rules(score):
         break
 
       scores_window.append(score)  ## save the most recent score

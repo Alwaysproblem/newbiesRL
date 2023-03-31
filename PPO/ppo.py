@@ -153,7 +153,10 @@ class PPOAgent(Agent):
         states, rewards, next_states, terminates
     )
 
-    val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
+    val_loss = self.val_loss(
+        self.critic.forward(states),
+        standardize(v_targets).detach()
+    )
     # compute the old policy distribution
     with torch.no_grad():
       _, action_dist_old = self.action(
