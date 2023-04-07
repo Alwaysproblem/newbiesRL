@@ -1,13 +1,33 @@
 """The buffer protocol described here"""
 from collections import deque
-from collections import namedtuple
 from copy import deepcopy
 import warnings
 import numpy as np
 
-Experience = namedtuple(
-    "Experience", ["state", "action", "reward", "next_state", "done"]
-)
+
+class Experience:
+  # pylint: disable=line-too-long
+  """Experience is a pickle of (state, action, reward, next_state, done, log_prob...)"""
+
+  def __init__(
+      self,
+      state,
+      action,
+      reward,
+      next_state=None,
+      done=None,
+      log_prob=None,
+      **kwargs
+  ) -> None:
+    self.state = state
+    self.action = action
+    self.reward = reward
+    self.next_state = next_state
+    self.done = done
+    self.log_prob = log_prob
+    if kwargs:
+      for k, v in kwargs.items():
+        setattr(self, k, v)
 
 
 class Trajectory:
