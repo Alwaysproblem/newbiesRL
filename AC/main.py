@@ -22,8 +22,8 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000,
-    max_t=2000,
+    n_episodes=20000,
+    max_t=500,
     eps_start=1.0,
     eps_end=0.01,
     eps_decay=0.996,
@@ -51,11 +51,13 @@ def main(
 
   gamma = 0.995
   lr_actor = 0.002
-  lr_critic = 0.002
-  batch_size = 64
+  lr_critic = 0.02
+  batch_size = 1000
   n_steps = 0
   gae_lambda = 0.95
   beta = 0.00001
+  num_workers = 10
+  iteration = 1000
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -71,31 +73,32 @@ def main(
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 
   for i_episode in range(1, n_episodes + 1):
-    state, _ = env.reset()
-    score = 0
-    traj = Trajectory()
-    for _, _ in enumerate(repeat(0, max_t)):
-      action = agent.take_action(state=state)
-      next_state, reward, done, _, _ = env.step(action)
-      traj.enqueue(Experience(state, action, reward, next_state, done))
+    for _ in range(num_workers):
+      state, _ = env.reset()
+      score = 0
+      traj = Trajectory()
+      for _, _ in enumerate(repeat(0, max_t)):
+        action = agent.take_action(state=state)
+        next_state, reward, done, _, _ = env.step(action)
+        traj.enqueue(Experience(state, action, reward, next_state, done))
 
-      state = next_state
-      score += reward
+        state = next_state
+        score += reward
 
-      if done or score_term_rules(score):
-        break
+        if done or score_term_rules(score):
+          break
 
-      scores_window.append(score)  ## save the most recent score
-      scores.append(score)  ## sae the most recent score
-      eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
-      print(" " * os.get_terminal_size().columns, end="\r")
-      print(
-          f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
-          end="\r"
-      )
+        scores_window.append(score)  ## save the most recent score
+        scores.append(score)  ## sae the most recent score
+        eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+        print(" " * os.get_terminal_size().columns, end="\r")
+        print(
+            f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
+            end="\r"
+        )
 
-    agent.remember(traj)
-    agent.learn(traj)
+      agent.remember(traj)
+    agent.learn(iteration)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")

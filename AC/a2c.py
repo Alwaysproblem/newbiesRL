@@ -131,7 +131,23 @@ class A2CAgent(Agent):
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
 
-  def learn(self, trajectory: Trajectory):
+  def learn(self, iteration: int = 10):
+    """Update value parameters using given batch of experience tuples."""
+    polcy_loss, val_loss = np.nan, np.nan
+    if len(self.memory) < self.batch_size:
+      return polcy_loss, val_loss
+
+    polcy_loss = []
+    val_loss = []
+    for _ in range(iteration):
+      trajectory = self.memory.sample_from()[0]
+      polcy_loss_, val_loss_ = self._learn(trajectory)
+      polcy_loss.append(polcy_loss_.cpu().data.numpy())
+      val_loss.append(val_loss_.cpu().data.numpy())
+
+    return np.array(polcy_loss).mean(), np.array(val_loss).mean()
+
+  def _learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
                               ).float().to(device)
     actions = torch.from_numpy(np.vstack([e.action for e in trajectory])
@@ -143,14 +159,10 @@ class A2CAgent(Agent):
     ).float().to(device)
     terminates = torch.from_numpy(np.vstack([e.done for e in trajectory])
                                   ).float().to(device)
-    if self.n_steps > 0:
-      advs, v_targets = self.calc_nstep_advs_v_target(
-          states, rewards, next_states, terminates
-      )
-    else:
-      advs, v_targets = self.calc_gae_advs_v_target(
-          states, rewards, next_states, terminates
-      )
+
+    advs, v_targets = self.calc_adv_and_v_target(
+        states, rewards, next_states, terminates
+    )
 
     val_loss = self.val_loss(
         self.critic.forward(states),
@@ -170,6 +182,16 @@ class A2CAgent(Agent):
     self.actor_optimizer.step()
     self.critic_optimizer.step()
     return policy_loss, val_loss
+
+  def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
+    if self.n_steps > 0:
+      return self.calc_nstep_advs_v_target(
+          states, rewards, next_states, terminates
+      )
+    else:
+      return self.calc_gae_advs_v_target(
+          states, rewards, next_states, terminates
+      )
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the n-stpes advantage and V_target.
