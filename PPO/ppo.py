@@ -136,7 +136,23 @@ class PPOAgent(Agent):
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
 
-  def learn(self, trajectory: Trajectory):
+  def learn(self, iteration: int = 10):
+    """Update value parameters using given batch of experience tuples."""
+    polcy_loss, val_loss = np.nan, np.nan
+    if len(self.memory) < self.batch_size:
+      return polcy_loss, val_loss
+
+    polcy_loss = []
+    val_loss = []
+    for _ in range(iteration):
+      trajectory = self.memory.sample_from()[0]
+      polcy_loss_, val_loss_ = self._learn(trajectory)
+      polcy_loss.append(polcy_loss_.cpu().data.numpy())
+      val_loss.append(val_loss_.cpu().data.numpy())
+
+    return np.array(polcy_loss).mean(), np.array(val_loss).mean()
+
+  def _learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
                               ).float().to(device)
     actions = torch.from_numpy(np.vstack([e.action for e in trajectory])
