@@ -49,15 +49,16 @@ def main(
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.7
-  lr_actor = 0.002
-  lr_critic = 0.002
-  batch_size = 64
+  gamma = 0.99
+  lr_actor = 0.0005
+  lr_critic = 0.02
+  batch_size = 1000
   n_steps = 0
   gae_lambda = 0.95
   clip_eps = 0.2
-  update_old_policy = 2
+  num_workers = 10
   beta = 0.00001
+  iteration = 1000
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -73,39 +74,43 @@ def main(
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 
-  policy_loss, val_loss = torch.Tensor([np.nan]), torch.Tensor([np.nan])
+  policy_loss, val_loss = np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
-    state, _ = env.reset()
-    score = 0
-    traj = Trajectory()
-    if i_episode and i_episode % update_old_policy == 0:
-      agent.update_actor_old()
-    for _, _ in enumerate(repeat(0, max_t)):
-      action = agent.take_action(state=state)
-      next_state, reward, done, _, _ = env.step(action)
-      traj.enqueue(Experience(state, action, reward, next_state, done))
+    agent.update_actor_old()
 
-      state = next_state
-      score += reward
+    for _ in range(num_workers):
+      state, _ = env.reset()
+      score = 0
+      traj = Trajectory()
+      for _, _ in enumerate(repeat(0, max_t)):
+        action = agent.take_action(state=state)
+        next_state, reward, done, _, _ = env.step(action)
+        log_prob = agent.log_prob(action)
+        traj.enqueue(
+            Experience(state, action, reward, next_state, done, log_prob)
+        )
 
-      if done or score_term_rules(score):
-        break
+        state = next_state
+        score += reward
 
-      scores_window.append(score)  ## save the most recent score
-      scores.append(score)  ## sae the most recent score
-      eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
-      print(" " * os.get_terminal_size().columns, end="\r")
-      print(
-          f"\rEpisode {i_episode}\t"
-          f"Average Score {np.mean(scores_window):.2f}\t"
-          f"policy loss {policy_loss.item():.9f}\t"
-          f"value loss {val_loss.item():.2f}",
-          end="\r"
-      )
+        if done or score_term_rules(score):
+          break
 
-    agent.remember(traj)
-    policy_loss, val_loss = agent.learn(traj)
+        scores_window.append(score)  ## save the most recent score
+        scores.append(score)  ## sae the most recent score
+        eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+        print(" " * os.get_terminal_size().columns, end="\r")
+        print(
+            f"\rEpisode {i_episode}\t"
+            f"Average Score {np.mean(scores_window):.2f}\t"
+            f"policy loss {policy_loss:.9f}\t"
+            f"value loss {val_loss:.2f}",
+            end="\r"
+        )
+
+      agent.remember(traj)
+    policy_loss, val_loss = agent.learn(iteration=iteration)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")

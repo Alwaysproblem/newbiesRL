@@ -136,7 +136,23 @@ class PPOAgent(Agent):
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
 
-  def learn(self, trajectory: Trajectory):
+  def learn(self, iteration: int = 10):
+    """Update value parameters using given batch of experience tuples."""
+    polcy_loss, val_loss = np.nan, np.nan
+    if len(self.memory) < self.batch_size:
+      return polcy_loss, val_loss
+
+    polcy_loss = []
+    val_loss = []
+    for _ in range(iteration):
+      trajectory = self.memory.sample_from()[0]
+      polcy_loss_, val_loss_ = self._learn(trajectory)
+      polcy_loss.append(polcy_loss_.cpu().data.numpy())
+      val_loss.append(val_loss_.cpu().data.numpy())
+
+    return np.array(polcy_loss).mean(), np.array(val_loss).mean()
+
+  def _learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
                               ).float().to(device)
     actions = torch.from_numpy(np.vstack([e.action for e in trajectory])
@@ -148,6 +164,9 @@ class PPOAgent(Agent):
     ).float().to(device)
     terminates = torch.from_numpy(np.vstack([e.done for e in trajectory])
                                   ).float().to(device)
+    log_prob_old = torch.from_numpy(
+        np.vstack([e.log_prob for e in trajectory])
+    ).float().to(device)
 
     advs, v_targets = self.calc_adv_and_v_target(
         states, rewards, next_states, terminates
@@ -158,11 +177,11 @@ class PPOAgent(Agent):
         standardize(v_targets).detach()
     )
     # compute the old policy distribution
-    with torch.no_grad():
-      _, action_dist_old = self.action(
-          state=states, actor_old=True, mode="eval"
-      )
-      log_prob_old = action_dist_old.log_prob(actions.T).detach()
+    # with torch.no_grad():
+    #   _, action_dist_old = self.action(
+    #       state=states, actor_old=True, mode="eval"
+    #   )
+    #   log_prob_old = action_dist_old.log_prob(actions.T).detach()
 
     # compute the policy distribution
     _, action_dist = self.action(state=states, actor_old=False, mode="train")
@@ -170,8 +189,8 @@ class PPOAgent(Agent):
     # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
     # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
     importance_ratio = torch.exp(
-        action_dist.log_prob(actions.T) - log_prob_old
-    ).T
+        action_dist.log_prob(actions.T).T - log_prob_old
+    )
     # importance_ratio = torch.exp(
     #     action_dist.log_prob(actions.T) - log_prob_old
     # ).T
@@ -198,10 +217,8 @@ class PPOAgent(Agent):
       return self.calc_nstep_advs_v_target(
           states, rewards, next_states, terminates
       )
-    else:
-      return self.calc_gae_advs_v_target(
-          states, rewards, next_states, terminates
-      )
+
+    return self.calc_gae_advs_v_target(states, rewards, next_states, terminates)
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the n-stpes advantage and V_target.
@@ -293,6 +310,7 @@ class PPOAgent(Agent):
     pi = actor.forward(state)
     dist = Categorical(pi)
     action = dist.sample()
+    self.dist = dist
     return action.cpu().data.numpy(), dist
 
   def take_action(self, state, actor_old=True, _=0):
@@ -308,6 +326,10 @@ class PPOAgent(Agent):
       action_values, *_ = self.action(state, actor_old=actor_old)
 
     return action_values.item()
+
+  def log_prob(self, action):
+    return self.dist.log_prob(torch.Tensor([action]).to(device)
+                              ).data.cpu().item()
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
