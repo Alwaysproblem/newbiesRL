@@ -217,10 +217,8 @@ class PPOAgent(Agent):
       return self.calc_nstep_advs_v_target(
           states, rewards, next_states, terminates
       )
-    else:
-      return self.calc_gae_advs_v_target(
-          states, rewards, next_states, terminates
-      )
+
+    return self.calc_gae_advs_v_target(states, rewards, next_states, terminates)
 
   def calc_nstep_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the n-stpes advantage and V_target.
