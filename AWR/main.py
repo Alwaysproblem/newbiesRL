@@ -1,4 +1,4 @@
-"""main executable file for A2C"""
+"""main executable file for awr"""
 import os
 import logging
 from itertools import repeat

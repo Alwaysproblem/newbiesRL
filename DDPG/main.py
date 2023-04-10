@@ -1,4 +1,4 @@
-"""main executable file for DQN"""
+"""main executable file for DDPG"""
 import os
 import logging
 from itertools import repeat
