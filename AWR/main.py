@@ -22,8 +22,8 @@ EPSILON_DECAY_STEPS = 100
 
 
 def main(
-    n_episodes=2000,
-    max_t=200,
+    n_episodes=20000,
+    max_t=500,
     eps_start=1.0,
     eps_end=0.01,
     eps_decay=0.996,
@@ -49,18 +49,18 @@ def main(
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.99
+  gamma = 0.995
   lr_actor = 0.001
-  lr_critic = 0.001
-  batch_size = 64
-  beta = 0
+  lr_critic = 0.01
+  batch_size = 1000
+  beta = 0.01
 
   td_lambda = 1.0
   awr_beta = 1.0
   awr_min_weight = 0
   awr_max_weight = 20
   learn_iteration = 100
-  num_workers = 10
+  num_workers = 32
 
   agent = Agent(
       state_dims=env.observation_space.shape[0],

@@ -49,15 +49,15 @@ def main(
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.99
-  lr_actor = 0.0005
-  lr_critic = 0.02
+  gamma = 0.995
+  lr_actor = 0.001
+  lr_critic = 0.01
   batch_size = 1000
   n_steps = 0
   gae_lambda = 0.95
   clip_eps = 0.2
-  num_workers = 10
-  beta = 0.00001
+  num_workers = 32
+  beta = 0.01
   iteration = 1000
   agent = Agent(
       state_dims=env.observation_space.shape[0],
