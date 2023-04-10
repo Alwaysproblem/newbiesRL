@@ -28,7 +28,8 @@ def main(
     eps_start=1.0,
     eps_end=0.01,
     eps_decay=0.996,
-    score_term_rules=lambda s: False
+    score_term_rules=lambda s: False,
+    time_interval="25ms"
 ):
   # pylint: disable=line-too-long
   """Deep Q-Learning
@@ -99,6 +100,7 @@ def main(
           env,
           filepath=dump_gif_dir.format(i_episode),
           policy=lambda s: agent.take_action(s, 0),
+          duration=float(time_interval.split("ms")[0]),
           max_episode_steps=max_t
       )
 
