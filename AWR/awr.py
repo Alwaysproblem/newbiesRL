@@ -42,6 +42,7 @@ class Actor(nn.Module):
         """
     x = F.relu(self.fc1(x))
     x = F.relu(self.fc2(x))
+    # x /= temperature  # 对原始得分进行缩放
     pi = F.softmax(self.fc_policy(x), dim=1)
     return pi
 
