@@ -53,7 +53,7 @@ def main(
   gamma = 0.995
   lr_actor = 0.001
   lr_critic = 0.01
-  batch_size = 1000
+  batch_size = 32
   n_steps = 0
   gae_lambda = 0.95
   clip_eps = 0.2

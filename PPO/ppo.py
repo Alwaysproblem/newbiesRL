@@ -20,7 +20,15 @@ class Actor(nn.Module):
   """ Actor (Policy) Model."""
 
   def __init__(
-      self, state_dim, action_space, seed=0, fc1_unit=256, fc2_unit=256
+      self,
+      state_dim,
+      action_space,
+      seed=0,
+      fc1_unit=256,
+      fc2_unit=256,
+      init_weight_gain=np.sqrt(2),
+      init_policy_weight_gain=0.01,
+      init_bias=0
   ):
     """
         Initialize parameters and build model.
@@ -38,6 +46,14 @@ class Actor(nn.Module):
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
     self.fc_policy = nn.Linear(fc2_unit, action_space)
 
+    nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc_policy.weight, gain=init_policy_weight_gain)
+
+    nn.init.constant_(self.fc1.bias, init_bias)
+    nn.init.constant_(self.fc2.bias, init_bias)
+    nn.init.constant_(self.fc_policy.bias, init_bias)
+
   def forward(self, x):
     """
         Build a network that maps state -> action values.
@@ -52,7 +68,15 @@ class Critic(nn.Module):
   """ Critic (Policy) Model."""
 
   def __init__(
-      self, state_dim, action_space=1, seed=0, fc1_unit=256, fc2_unit=256
+      self,
+      state_dim,
+      action_space=1,
+      seed=0,
+      fc1_unit=256,
+      fc2_unit=256,
+      init_weight_gain=np.sqrt(2),
+      init_value_weight_gain=1,
+      init_bias=0
   ):
     """
         Initialize parameters and build model.
@@ -69,6 +93,14 @@ class Critic(nn.Module):
     self.fc1 = nn.Linear(state_dim, fc1_unit)
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
     self.fc3 = nn.Linear(fc2_unit, action_space)
+
+    nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc3.weight, gain=init_value_weight_gain)
+
+    nn.init.constant_(self.fc1.bias, init_bias)
+    nn.init.constant_(self.fc2.bias, init_bias)
+    nn.init.constant_(self.fc3.bias, init_bias)
 
   def forward(self, x):
     """
@@ -100,6 +132,8 @@ class PPOAgent(Agent):
       gae_lambda=None,
       clip_eps=0.2,
       beta=0,
+      value_clip=False,
+      grad_clip=0.5,
       seed=0,
   ):
 
@@ -115,6 +149,8 @@ class PPOAgent(Agent):
     self.lr_critic = lr_critic
     self.beta = beta
     self.clip_eps = clip_eps
+    self.value_clip = value_clip
+    self.grad_clip = grad_clip
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
@@ -122,10 +158,10 @@ class PPOAgent(Agent):
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.Adam(
-        self.actor.parameters(), lr=self.lr_actor
+        self.actor.parameters(), lr=self.lr_actor, eps=1e-5
     )
     self.critic_optimizer = torch.optim.Adam(
-        self.critic.parameters(), lr=self.lr_critic
+        self.critic.parameters(), lr=self.lr_critic, eps=1e-5
     )
 
     # Replay memory
@@ -172,10 +208,21 @@ class PPOAgent(Agent):
         states, rewards, next_states, terminates
     )
 
-    val_loss = self.val_loss(
-        self.critic.forward(states),
-        standardize(v_targets).detach()
-    )
+    if self.value_clip:
+      v_loss_unclipped = (self.critic.forward(states) - v_targets) ** 2
+      v_clipped = self.critic.forward(states).detach() + torch.clamp(
+          self.critic.forward(states).detach() - v_targets,
+          -self.clip_eps,
+          self.clip_eps,
+      )
+      v_loss_clipped = (v_clipped - self.critic.forward(states)) ** 2
+      v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+      val_loss = 0.5 * v_loss_max.mean()
+    else:
+      val_loss = 0.5 * self.val_loss(
+          self.critic.forward(states), v_targets.detach()
+      )
+
     # compute the old policy distribution
     # with torch.no_grad():
     #   _, action_dist_old = self.action(
@@ -208,6 +255,7 @@ class PPOAgent(Agent):
     self.critic_optimizer.zero_grad()
     policy_loss.backward()
     val_loss.backward()
+    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
     self.actor_optimizer.step()
     self.critic_optimizer.step()
     return policy_loss, val_loss
