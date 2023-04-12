@@ -96,7 +96,7 @@ class C51Agent(Agent):
     self.qnetwork_target = Q(
         state_dim=state_dims, action_space=action_space, n_atoms=n_atoms
     ).to(device)
-    self.optimizer = torch.optim.AdamW(self.qnetwork_local.parameters(), lr=lr)
+    self.optimizer = torch.optim.Adam(self.qnetwork_local.parameters(), lr=lr)
 
     # Replay memory
     self.memory = ReplayBuffer(max_size=mem_size)

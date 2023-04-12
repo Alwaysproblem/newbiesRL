@@ -189,10 +189,10 @@ class DDPGAgent(Agent):
     self.critic_target = Critic(self.state_dims, self.action_space).to(device)
     self.critic_target.load_state_dict(self.critic.state_dict())
 
-    self.actor_optimizer = torch.optim.AdamW(
+    self.actor_optimizer = torch.optim.Adam(
         self.actor.parameters(), lr=self.lr_actor
     )
-    self.critic_optimizer = torch.optim.AdamW(
+    self.critic_optimizer = torch.optim.Adam(
         self.critic.parameters(), lr=self.lr_critic
     )
 

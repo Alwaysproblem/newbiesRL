@@ -58,7 +58,7 @@ def main(
   gae_lambda = 0.95
   clip_eps = 0.2
   num_workers = 32
-  beta = 0.01
+  beta = 0.001
   iteration = 1000
   agent = Agent(
       state_dims=env.observation_space.shape[0],
@@ -67,6 +67,7 @@ def main(
       lr_critic=lr_critic,
       gamma=gamma,
       batch_size=batch_size,
+      mem_size=100000,
       forget_experience=False,
       n_steps=n_steps,
       gae_lambda=gae_lambda,

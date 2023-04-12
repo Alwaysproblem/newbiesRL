@@ -116,10 +116,10 @@ class A2CAgent(Agent):
     self.actor = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
-    self.actor_optimizer = torch.optim.AdamW(
+    self.actor_optimizer = torch.optim.Adam(
         self.actor.parameters(), lr=self.lr_actor
     )
-    self.critic_optimizer = torch.optim.AdamW(
+    self.critic_optimizer = torch.optim.Adam(
         self.critic.parameters(), lr=self.lr_critic
     )
 
