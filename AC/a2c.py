@@ -96,6 +96,7 @@ class A2CAgent(Agent):
       forget_experience=True,
       n_steps=0,
       gae_lambda=None,
+      grad_clip=0.5,
       beta=0,
       seed=0
   ):
@@ -111,16 +112,17 @@ class A2CAgent(Agent):
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.beta = beta
+    self.grad_clip = grad_clip
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.Adam(
-        self.actor.parameters(), lr=self.lr_actor
+        self.actor.parameters(), lr=self.lr_actor, eps=1e-5
     )
     self.critic_optimizer = torch.optim.Adam(
-        self.critic.parameters(), lr=self.lr_critic
+        self.critic.parameters(), lr=self.lr_critic, eps=1e-5
     )
 
     # Replay memory
@@ -131,16 +133,20 @@ class A2CAgent(Agent):
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
 
-  def learn(self, iteration: int = 10):
+  def learn(self, iteration: int = 10, replace=True):
     """Update value parameters using given batch of experience tuples."""
     polcy_loss, val_loss = np.nan, np.nan
-    if len(self.memory) < self.batch_size:
+    if len(self.memory) < iteration:
       return polcy_loss, val_loss
 
     polcy_loss = []
     val_loss = []
-    for _ in range(iteration):
-      trajectory = self.memory.sample_from()[0]
+    trajectories = self.memory.sample_from(
+        num_samples=iteration, replace=replace
+    )
+    if not trajectories:
+      return np.nan, np.nan
+    for trajectory in trajectories:
       polcy_loss_, val_loss_ = self._learn(trajectory)
       polcy_loss.append(polcy_loss_.cpu().data.numpy())
       val_loss.append(val_loss_.cpu().data.numpy())
@@ -164,10 +170,7 @@ class A2CAgent(Agent):
         states, rewards, next_states, terminates
     )
 
-    val_loss = self.val_loss(
-        self.critic.forward(states),
-        standardize(v_targets).detach()
-    )
+    val_loss = self.val_loss(self.critic.forward(states), v_targets.detach())
     _, action_dist = self.action(state=states, mode="train")
 
     policy_loss = torch.mean(
@@ -179,6 +182,7 @@ class A2CAgent(Agent):
     self.critic_optimizer.zero_grad()
     policy_loss.backward()
     val_loss.backward()
+    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
     self.actor_optimizer.step()
     self.critic_optimizer.step()
     return policy_loss, val_loss
