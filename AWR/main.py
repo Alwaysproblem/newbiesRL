@@ -47,18 +47,19 @@ def main(
   eps = eps_start
   env = gym.make("LunarLander-v2", render_mode="rgb_array")
   # env = gym.make("CartPole-v1", render_mode="rgb_array")
+  # max_t = 200
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
   gamma = 0.995
   lr_actor = 0.001
   lr_critic = 0.01
-  batch_size = 1000
+  batch_size = 10
   beta = 0.01
 
-  td_lambda = 1.0
-  awr_beta = 1.0
-  awr_min_weight = 0
+  td_lambda = 0.95
+  awr_beta = 0.05
+  awr_min_weight = None
   awr_max_weight = 20
   learn_iteration = 100
   num_workers = 32
@@ -71,6 +72,7 @@ def main(
       gamma=gamma,
       batch_size=batch_size,
       forget_experience=False,
+      mem_size=100000,
       beta=beta,
       td_lambda=td_lambda,
       awr_beta=awr_beta,
@@ -78,6 +80,8 @@ def main(
       awr_max_weight=awr_max_weight,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
+
+  policy_loss, val_loss = np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
     for _ in range(num_workers):
@@ -100,12 +104,16 @@ def main(
         eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
         print(" " * os.get_terminal_size().columns, end="\r")
         print(
-            f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
+            f"\rEpisode {i_episode}\t"
+            f"Average Score {np.mean(scores_window):.2f}\t"
+            f"policy loss {policy_loss:.9f}\t"
+            f"value loss {val_loss:.9f}",
             end="\r"
         )
 
       agent.remember(traj)
-    agent.learn(learn_iteration)
+
+    policy_loss, val_loss = agent.learn(learn_iteration)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")

@@ -1,4 +1,5 @@
 """AWR implementation with pytorch."""
+from functools import partial
 import numpy as np
 import torch
 from torch import nn
@@ -146,7 +147,7 @@ class AWRAgent(Agent):
       awr_min_weight=0.1,
       awr_max_weight=100,
       grad_clip=0.5,
-      norm_factor=1,
+      norm_factor=10,
       value_network_scale=True,
       critic_train_step=10,
       actor_train_step=100,
@@ -202,6 +203,19 @@ class AWRAgent(Agent):
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
 
+    self.scale_up_values = partial(
+        scale_up_values,
+        mean=0,
+        std=self.value_network_scale,
+        norm_factor=self.norm_factor
+    )
+    self.scale_down_values = partial(
+        scale_down_values,
+        mean=0,
+        std=self.value_network_scale,
+        norm_factor=self.norm_factor
+    )
+
   def learn(self, iteration: int = 10, replace=True):
     """Update value parameters using given batch of experience tuples."""
     polcy_loss, val_loss = np.nan, np.nan
@@ -234,7 +248,7 @@ class AWRAgent(Agent):
 
     mcre = self.td_lambda_estimate(rewards, states)
     # mcre = standardize(mcre)
-    n_mcre = scale_down_values(mcre, std=self.value_network_scale)
+    n_mcre = self.scale_down_values(mcre)
     val_loss = 0.5 * self.val_loss(n_mcre.detach(), self.critic.forward(states))
     self.critic_optimizer.zero_grad()
     val_loss.backward()
@@ -249,9 +263,7 @@ class AWRAgent(Agent):
     rewards = torch.from_numpy(np.vstack([e.reward for e in trajectory])
                                ).float().to(device)
     mcre = self.td_lambda_estimate(rewards, states)
-    advs = mcre - scale_up_values(
-        self.critic.forward(states), std=self.value_network_scale
-    ).detach()
+    advs = mcre - self.scale_up_values(self.critic.forward(states)).detach()
     advs = standardize(advs)
     adv_weight = torch.clip(
         torch.exp(1 / self.awr_beta * advs), self.awr_min_weight,
@@ -276,9 +288,7 @@ class AWRAgent(Agent):
     # computes td-lambda return of path
     T = len(rewards)  # pylint: disable=invalid-name
 
-    v_preds = scale_up_values(
-        self.critic.forward(states), std=self.value_network_scale
-    ).detach()
+    v_preds = self.scale_up_values(self.critic.forward(states)).detach()
     val_t = torch.concat((v_preds, torch.Tensor([[0]]).to(device)), dim=0)
 
     assert len(val_t) == T + 1
