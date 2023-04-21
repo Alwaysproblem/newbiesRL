@@ -66,6 +66,7 @@ def main(
       lr_critic=lr_critic,
       gamma=gamma,
       batch_size=batch_size,
+      mem_size=100000,
       forget_experience=False,
       n_steps=n_steps,
       gae_lambda=gae_lambda,

@@ -58,7 +58,7 @@ def main(
   gae_lambda = 0.95
   clip_eps = 0.2
   num_workers = 32
-  beta = 0.001
+  beta = 0.01
   iteration = 1000
   agent = Agent(
       state_dims=env.observation_space.shape[0],
