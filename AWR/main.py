@@ -64,6 +64,11 @@ def main(
   learn_iteration = 100
   num_workers = 32
 
+  grad_clip = 0.5
+  norm_factor = 10
+  value_network_scale = True
+  l2_loss_weight = 0.01
+
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -78,6 +83,10 @@ def main(
       awr_beta=awr_beta,
       awr_min_weight=awr_min_weight,
       awr_max_weight=awr_max_weight,
+      grad_clip=grad_clip,
+      norm_factor=norm_factor,
+      value_network_scale=value_network_scale,
+      l2_loss_weight=l2_loss_weight,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 

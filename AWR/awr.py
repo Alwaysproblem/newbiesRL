@@ -144,8 +144,8 @@ class AWRAgent(Agent):
       td_lambda=1.0,
       beta=0,
       awr_beta=0.5,
-      awr_min_weight=0.1,
-      awr_max_weight=100,
+      awr_min_weight=None,
+      awr_max_weight=None,
       grad_clip=0.5,
       norm_factor=10,
       value_network_scale=True,
@@ -279,7 +279,7 @@ class AWRAgent(Agent):
 
     self.actor_optimizer.zero_grad()
     policy_loss.backward()
-    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+    # nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
     self.actor_optimizer.step()
 
     return policy_loss
