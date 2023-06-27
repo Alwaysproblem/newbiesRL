@@ -10,26 +10,26 @@ This is a practice for Deep reinforcement learning
   conda install jupyter pandas colorama pylint yapf seaborn scipy scikit-learn tqdm tensorboardx==2.5.* tensorboard==2.* pillow -y -c conda-forge
   ```
 
-- gym
-  - install gym
+- gymnasium
+  - install gymnasium
 
     ```bash
-    conda install gym pyglet pygame gym-box2d -c conda-forge
+    conda install gymnasium pyglet pygame gymnasium-box2d -c conda-forge
     ```
 
-- gym + pytorch
+- gymnasium + pytorch
 
   ```bash
   conda install pytorch torchvision torchaudio -c pytorch
   ```
 
-- gym + TF2
+- gymnasium + TF2
 
   ```bash
   conda install tensorflow -c conda-forge
   ```
 
-- gym + jax
+- gymnasium + jax
 
   ```bash
   conda install jax chex optax dm-haiku jaxlib Jraph -c conda-forge

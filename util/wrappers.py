@@ -1,4 +1,4 @@
-"""Some wrappers for gym environment."""
+"""Some wrappers for gymnasium environment."""
 import os
 import re
 import datetime
@@ -7,8 +7,8 @@ from collections import deque
 from typing import Mapping
 
 import numpy as np
-from gym import Wrapper
-from gym.spaces import Discrete
+from gymnasium import Wrapper
+from gymnasium.spaces import Discrete
 from tensorboardX import SummaryWriter
 
 __all__ = ('TrainMonitor', )
@@ -59,8 +59,8 @@ class TrainMonitor(Wrapper):
     attributes (listed below).
     Parameters
     ----------
-    env : gym environment
-        A gym environment.
+    env : gymnasium environment
+        A gymnasium environment.
     tensorboard_dir : str, optional
         If provided, TrainMonitor will log all diagnostics to be viewed in tensorboard. To view
         these, point tensorboard to the same dir:

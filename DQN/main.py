@@ -2,7 +2,7 @@
 import os
 import logging
 from itertools import repeat
-import gym
+import gymnasium as gym
 import torch
 import numpy as np
 from util import generate_gif

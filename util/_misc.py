@@ -20,7 +20,7 @@ def generate_gif(
     Store a gif from the episode frames.
     Parameters
     ----------
-    env : gym environment
+    env : gymnasium environment
         The environment to record from.
     filepath : str
         Location of the output gif file.
