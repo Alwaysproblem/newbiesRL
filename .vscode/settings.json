@@ -1,17 +1,13 @@
 {
   "editor.tabSize": 2,
-  "python.linting.enabled": true,
-  "editor.formatOnSave": true,
-  "python.formatting.provider": "yapf",
-  "python.formatting.yapfArgs": [
-    "--style",
-    "${workspaceFolder}/.style.yapf"
-  ],
-  "python.linting.cwd": "${workspaceFolder}",
-  "python.linting.pylintEnabled": true,
-  "python.linting.pylintArgs": [
+  "pylint.args": [
     "--rcfile=${workspaceFolder}/.pylintrc"
   ],
+  "pylint.path": ["conda", "run", "-n", "rltorch", "python", "-m", "pylint"],
+  "yapf.args": ["--style", "${workspaceFolder}/.style.yapf"],
+  "[python]": {
+    "editor.defaultFormatter": "eeyore.yapf",
+  },
   "editor.tokenColorCustomizations": {
     "[*Dark*]": {
       "comments": {
@@ -31,26 +27,6 @@
           }
         }
       ]
-    },
-    "textMateRules": [
-      {
-        "scope": "googletest.failed",
-        "settings": {
-          "foreground": "#f00"
-        }
-      },
-      {
-        "scope": "googletest.passed",
-        "settings": {
-          "foreground": "#0f0"
-        }
-      },
-      {
-        "scope": "googletest.run",
-        "settings": {
-          "foreground": "#0f0"
-        }
-      }
-    ]
+    }
   }
 }
