@@ -12,70 +12,81 @@ from collections import deque
 # pylint: disable=invalid-name
 from PPO.ppo import PPOAgent as PPO_torch
 
-Agent = PPO_torch
-logging.basicConfig(level=logging.INFO)
 
-torch.manual_seed(0)
-np.random.seed(0)
-
-EPSILON_DECAY_STEPS = 100
-
-
+# pylint: disable=unused-argument
 def main(
+    game="LunarLander-v2",
+    backend="torch",  # "torch", "tf", "jax
+    gamma=0.995,
+    lr_actor=0.001,
+    lr_critic=0.01,
+    batch_size=32,
+    n_steps=0,
+    gae_lambda=0.95,
+    clip_eps=0.2,
+    num_workers=32,
+    beta=0.01,
+    iteration=1000,
     n_episodes=20000,
+    mem_size=100000,
+    forget_experience=False,
     max_t=500,
     eps_start=1.0,
     eps_end=0.01,
     eps_decay=0.996,
-    score_term_rules=lambda s: False,
-    time_interval="25ms"
+    time_interval="25ms",
+    dump_gif_dir=None,
+    log_level="INFO",
+    score_term_rules=None,
+    tensorboard_dir="logs",
+    tensorboard_write_all=True,
+    **kwargs
 ):
+  backends = {"torch": PPO_torch, "jax": None, "tf2": None}
+  torch.manual_seed(0)
+  np.random.seed(0)
+  logging.basicConfig(level=log_level.upper())
+
   # pylint: disable=line-too-long
-  """Deep Q-Learning
-
-    Params
-    ======
-        n_episodes (int): maximum number of training epsiodes
-        max_t (int): maximum number of timesteps per episode
-        eps_start (float): starting value of epsilon, for epsilon-greedy action selection
-        eps_end (float): minimum value of epsilon
-        eps_decay (float): mutiplicative factor (per episode) for decreasing epsilon
-
-    """
   scores = []  # list containing score from each episode
   scores_window = deque(maxlen=100)  # last 100 scores
   eps = eps_start
-  # env = gym.make("CartPole-v1", render_mode="rgb_array")
-  env = gym.make("LunarLander-v2", render_mode="rgb_array")
 
-  env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
+  env = gym.make(game, render_mode="rgb_array")
+  env = TrainMonitor(
+      env,
+      tensorboard_dir=tensorboard_dir,
+      tensorboard_write_all=tensorboard_write_all
+  )
 
-  gamma = 0.995
-  lr_actor = 0.001
-  lr_critic = 0.01
-  batch_size = 32
-  n_steps = 0
-  gae_lambda = 0.95
-  clip_eps = 0.2
-  num_workers = 32
-  beta = 0.01
-  iteration = 1000
-  agent = Agent(
+  agent_class = backends.get(backend, None)
+  if agent_class is None:
+    raise NotImplementedError(
+        f"backend {backend} is not implemented yet, "
+        f"please choose from {list(backends.keys())}"
+    )
+
+  agent = agent_class(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
       lr_actor=lr_actor,
       lr_critic=lr_critic,
       gamma=gamma,
       batch_size=batch_size,
-      mem_size=100000,
-      forget_experience=False,
+      mem_size=mem_size,
+      forget_experience=forget_experience,
       n_steps=n_steps,
       gae_lambda=gae_lambda,
       beta=beta,
       clip_eps=clip_eps,
   )
-  dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
-
+  dump_gif_dir = (
+      f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
+      if not dump_gif_dir else dump_gif_dir
+  )
+  score_term_rules = score_term_rules if callable(
+      score_term_rules
+  ) else lambda s: False
   policy_loss, val_loss = np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
