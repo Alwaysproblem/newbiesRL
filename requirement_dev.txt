@@ -7,7 +7,8 @@ seaborn
 scipy
 scikit-learn
 tqdm
-gym
+gymnasium
+gymnasium-box2d
 pyglet
 pygame
 tensorboardx>=2.5.0

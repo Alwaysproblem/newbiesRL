@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 from util import generate_gif
 from util.wrappers import TrainMonitor
 
