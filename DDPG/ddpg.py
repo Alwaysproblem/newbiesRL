@@ -61,7 +61,10 @@ class Actor(nn.Module):
       seed=0,
       fc1_unit=64,
       fc2_unit=64,
-      max_action=1
+      max_action=1,
+      init_weight_gain=np.sqrt(2),
+      init_policy_weight_gain=1,
+      init_bias=0
   ):
     """
         Initialize parameters and build model.
@@ -76,16 +79,28 @@ class Actor(nn.Module):
     super().__init__()  ## calls __init__ method of nn.Module class
     self.seed = torch.manual_seed(seed)
     self.fc1 = nn.Linear(state_dim, fc1_unit)
+    self.fc1_ln = nn.LayerNorm(fc1_unit)
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
+    self.fc2_ln = nn.LayerNorm(fc2_unit)
     self.fc_policy = nn.Linear(fc2_unit, action_space)
     self.max_action = max_action
+
+    nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
+    nn.init.uniform_(
+        self.fc_policy.weight, -init_policy_weight_gain, init_policy_weight_gain
+    )
+
+    nn.init.constant_(self.fc1.bias, init_bias)
+    nn.init.constant_(self.fc2.bias, init_bias)
+    nn.init.constant_(self.fc_policy.bias, init_bias)
 
   def forward(self, x):
     """
         Build a network that maps state -> action values.
         """
-    x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
+    x = F.relu(self.fc1_ln(self.fc1(x)))
+    x = F.relu(self.fc2_ln(self.fc2(x)))
     pi = self.max_action * torch.tanh(self.fc_policy(x))
     return pi
 
@@ -94,7 +109,14 @@ class Critic(nn.Module):
   """ Critic (Policy) Model."""
 
   def __init__(
-      self, state_dim, action_space=1, seed=0, fc1_unit=64, fc2_unit=64
+      self,
+      state_dim,
+      action_space=1,
+      seed=0,
+      fc1_unit=64,
+      fc2_unit=64,
+      init_weight_gain=np.sqrt(2),
+      init_bias=0
   ):
     """
         Initialize parameters and build model.
@@ -109,16 +131,24 @@ class Critic(nn.Module):
     super().__init__()  ## calls __init__ method of nn.Module class
     self.seed = torch.manual_seed(seed)
     self.fc1 = nn.Linear(state_dim + action_space, fc1_unit)
+    self.fc1_ln = nn.LayerNorm(fc1_unit)
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
+    self.fc2_ln = nn.LayerNorm(fc2_unit)
     self.fc3 = nn.Linear(fc2_unit, 1)
+
+    nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
+
+    nn.init.constant_(self.fc1.bias, init_bias)
+    nn.init.constant_(self.fc2.bias, init_bias)
 
   def forward(self, x, y):
     """
         Build a network that maps state -> action values.
         """
     x = torch.concat([x, y], dim=1)
-    x = F.relu(self.fc1(x))
-    x = F.relu(self.fc2(x))
+    x = F.relu(self.fc1_ln(self.fc1(x)))
+    x = F.relu(self.fc2_ln(self.fc2(x)))
     return self.fc3(x)
 
 

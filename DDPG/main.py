@@ -64,8 +64,8 @@ def main(
   learn_iteration = 16
   update_tau = 0.5
 
-  lr_actor = 0.005
-  lr_critic = 0.005
+  lr_actor = 0.0001
+  lr_critic = 0.001
 
   mu = 0.0
   theta = 0.15
