@@ -24,7 +24,7 @@ EPSILON_DECAY_STEPS = 100
 
 def main(
     n_episodes=2000,
-    max_t=200,
+    max_t=500,
     eps_start=1.0,
     eps_end=0.01,
     eps_decay=0.996,
