@@ -49,9 +49,9 @@ def main(
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
   gamma = 0.95
-  lr = 0.001
+  lr = 0.0001
   batch_size = 64
-  learn_iteration = 160
+  learn_iteration = 16
   update_q_target_freq = 4
   n_atoms = 51
   v_min = -20

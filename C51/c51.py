@@ -36,9 +36,10 @@ class Q(nn.Module):
     # note:  After using `nn.Sequential`, you need to define a list with
     # note:  `nn.ModuleList` to construct the model graph.
     self.hidden_layers = nn.ModuleList([
-        nn.Sequential(nn.Linear(in_size, out_size), nn.ReLU())
-        for in_size, out_size in zip((state_dim, ) +
-                                     self.hidden_size, self.hidden_size)
+        nn.Sequential(
+            nn.Linear(in_size, out_size), nn.LayerNorm(out_size), nn.ReLU()
+        ) for in_size, out_size in zip((state_dim, ) +
+                                       self.hidden_size, self.hidden_size)
     ])
     self.output_layer = nn.Linear(self.hidden_size[-1], action_space * n_atoms)
 
