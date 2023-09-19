@@ -10,9 +10,16 @@ from util.buffer import Experience
 
 class Q(nn.Module):
   """ Actor (Policy) Model."""
-
   def __init__(
-      self, state_dim, action_space, n_atoms, seed=0, hidden_size=None
+      self,
+      state_dim,
+      action_space,
+      n_atoms,
+      seed=0,
+      hidden_size=None,
+      init_weight_gain=np.sqrt(2),
+      init_policy_weight_gain=1,
+      init_bias=0
   ):
     """
         Initialize parameters and build model.
@@ -30,6 +37,11 @@ class Q(nn.Module):
     self.seed = torch.manual_seed(seed)
     self.hidden_size = (100, 100, 100) if not hidden_size else hidden_size
 
+    def init_weights(m):
+      if isinstance(m, nn.Linear):
+        nn.init.orthogonal_(m.weight, gain=init_weight_gain)
+        nn.init.constant_(m.bias, init_bias)
+
     # note:  The self.hidden_layers attribute is defined as a list of lists,
     # note:  but it should be a list of `nn.Sequential` objects.
     # note:  You can fix this by using `nn.Sequential` to define each layer.
@@ -41,16 +53,33 @@ class Q(nn.Module):
         ) for in_size, out_size in zip((state_dim, ) +
                                        self.hidden_size, self.hidden_size)
     ])
-    self.output_layer = nn.Linear(self.hidden_size[-1], action_space * n_atoms)
+    self.hidden_layers.apply(init_weights)
+
+    def init_output_weights(m):
+      if isinstance(m, nn.Linear):
+        # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+        # nn.init.constant_(m.bias, init_bias)
+        nn.init.orthogonal_(m.weight, gain=init_weight_gain)
+        nn.init.constant_(m.bias, init_bias)
+
+    # self.output_layer = nn.Linear(self.hidden_size[-1], action_space * n_atoms)
+    self.output_layers = nn.ModuleList([
+        nn.Sequential(
+            nn.Linear(self.hidden_size[-1], n_atoms), nn.LayerNorm(n_atoms), nn.Softmax(dim=-1)
+        ) for _ in range(action_space)
+    ])
+
+    self.output_layers.apply(init_output_weights)
 
   def forward(self, state):
     x = state
     for hidden_layer in self.hidden_layers:
       x = hidden_layer(x)
-    x = self.output_layer(x)
-    x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
-    x = F.softmax(x, dim=-1)
-    return x
+    out = torch.concat([torch.unsqueeze(output_layer(x), dim=1) for output_layer in self.output_layers], dim=1)
+    # x = self.output_layer(x)
+    # x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
+    # x = F.softmax(x, dim=-1)
+    return out
 
 
 # device = torch.device("cpu")
@@ -59,7 +88,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class C51Agent(Agent):
   """Interacts with and learns form environment."""
-
   def __init__(
       self,
       state_dims,
@@ -74,7 +102,7 @@ class C51Agent(Agent):
       mem_size=None,
       forget_experience=True,
       sample_ratio=None,
-      seed=0
+      seed=0,
   ):
 
     self.state_dims = state_dims
@@ -82,7 +110,7 @@ class C51Agent(Agent):
     self.gamma = gamma
     self.batch_size = batch_size
     self.epsilon = epsilon
-    self.seed = np.random.seed(seed)
+    self.seed = torch.manual_seed(seed)
     self.sample_ratio = sample_ratio
     self.n_atoms = n_atoms
     self.v_min = v_min
@@ -104,8 +132,6 @@ class C51Agent(Agent):
 
     self.forget_experience = forget_experience
     self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())
-    # self.loss = nn.HuberLoss()
-    self.loss = nn.MSELoss()
 
   def learn(self, iteration):
     if len(self.memory) > self.batch_size:

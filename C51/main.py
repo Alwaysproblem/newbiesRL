@@ -48,7 +48,7 @@ def main(
   env = gym.make("CartPole-v1", render_mode="rgb_array")
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
-  gamma = 0.95
+  gamma = 0.99
   lr = 0.0001
   batch_size = 64
   learn_iteration = 16
