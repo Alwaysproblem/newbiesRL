@@ -36,6 +36,7 @@ class Q(nn.Module):
     self.n_atoms = n_atoms
     self.seed = torch.manual_seed(seed)
     self.hidden_size = (100, 100, 100) if not hidden_size else hidden_size
+    self.bn = nn.BatchNorm1d(state_dim)
 
     def init_weights(m):
       if isinstance(m, nn.Linear):
@@ -49,7 +50,7 @@ class Q(nn.Module):
     # note:  `nn.ModuleList` to construct the model graph.
     self.hidden_layers = nn.ModuleList([
         nn.Sequential(
-            nn.Linear(in_size, out_size), nn.LayerNorm(out_size), nn.ReLU()
+            nn.Linear(in_size, out_size), nn.LeakyReLU()
         ) for in_size, out_size in zip((state_dim, ) +
                                        self.hidden_size, self.hidden_size)
     ])
@@ -57,7 +58,7 @@ class Q(nn.Module):
 
     def init_output_weights(m):
       if isinstance(m, nn.Linear):
-        # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+        # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leakyrelu')
         # nn.init.constant_(m.bias, init_bias)
         nn.init.orthogonal_(m.weight, gain=init_weight_gain)
         nn.init.constant_(m.bias, init_bias)
@@ -65,14 +66,14 @@ class Q(nn.Module):
     # self.output_layer = nn.Linear(self.hidden_size[-1], action_space * n_atoms)
     self.output_layers = nn.ModuleList([
         nn.Sequential(
-            nn.Linear(self.hidden_size[-1], n_atoms), nn.LayerNorm(n_atoms), nn.Softmax(dim=-1)
+            nn.Linear(self.hidden_size[-1], n_atoms), nn.LeakyReLU(), nn.Softmax(dim=-1)
         ) for _ in range(action_space)
     ])
 
     self.output_layers.apply(init_output_weights)
 
   def forward(self, state):
-    x = state
+    x = self.bn(state)
     for hidden_layer in self.hidden_layers:
       x = hidden_layer(x)
     out = torch.concat([torch.unsqueeze(output_layer(x), dim=1) for output_layer in self.output_layers], dim=1)
