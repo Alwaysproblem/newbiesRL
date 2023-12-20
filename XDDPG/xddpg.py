@@ -6,6 +6,7 @@ from torch.nn import functional as F
 from util.buffer import ReplayBuffer
 from util.agent import Agent
 from util.buffer import Experience
+from functools import partial
 
 
 def gumbel_loss(pred, label, beta, clip):
@@ -220,6 +221,8 @@ class XDDPGAgent(Agent):
       seed=0,
       mu=0.0,
       theta=0.15,
+      gumbel_loss_beta=2,
+      gumbel_loss_clip=None,
       max_sigma=0.3,
       min_sigma=0.3,
       decay_period=100000
@@ -237,6 +240,10 @@ class XDDPGAgent(Agent):
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.beta = beta
+
+    self.gumbel_loss_beta = gumbel_loss_beta
+    self.gumbel_loss_clip = gumbel_loss_clip
+
     self.noise = OUNoise(
         action_space,
         mu=mu,
@@ -275,7 +282,11 @@ class XDDPGAgent(Agent):
 
     self.forget_experience = forget_experience
 
-    self.val_loss = nn.MSELoss()
+    self.val_loss = partial(
+        gumbel_rescale_loss,
+        beta=self.gumbel_loss_beta,
+        clip=self.gumbel_loss_clip
+    )
     self.policy_loss = nn.MSELoss()
 
   def learn(self, iteration):
@@ -357,8 +368,7 @@ class XDDPGAgent(Agent):
     # https://arxiv.org/pdf/2301.02328.pdf
     # Appendix C (EXTREME Q-LEARNING) and
     # the Q value Iteration part of C.1 (X-QL)
-    critic_loss = gumbel_rescale_loss(current_q, target_q, 2, None)
-    # print(critic_loss)
+    critic_loss = self.val_loss(current_q, target_q)
 
     # Optimize the critic
     self.critic_optimizer.zero_grad()

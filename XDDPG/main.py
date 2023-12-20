@@ -73,6 +73,9 @@ def main(
   min_sigma = 0.3
   decay_period = 100000
 
+  gumbel_loss_beta = 2
+  gumbel_loss_clip = None
+
   agent = Agent(
       state_dims=env.observation_space,
       action_space=env.action_space,
@@ -87,6 +90,8 @@ def main(
       max_sigma=max_sigma,
       min_sigma=min_sigma,
       decay_period=decay_period,
+      gumbel_loss_beta=gumbel_loss_beta,
+      gumbel_loss_clip=gumbel_loss_clip,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
   for i_episode in range(1, n_episodes + 1):
