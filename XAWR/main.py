@@ -1,4 +1,4 @@
-"""main executable file for awr"""
+"""main executable file for xawr"""
 import os
 import logging
 from itertools import repeat
@@ -10,9 +10,9 @@ from util.wrappers import TrainMonitor
 from util.buffer import Experience, Trajectory
 from collections import deque
 # pylint: disable=invalid-name
-from AWR.awr import AWRAgent as AWR_torch
+from XAWR.xawr import XAWRAgent as XAWR_torch
 
-Agent = AWR_torch
+Agent = XAWR_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -69,6 +69,9 @@ def main(
   value_network_scale = True
   l2_loss_weight = 0.01
 
+  gumbel_loss_beta = 2
+  gumbel_loss_clip = None
+
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -87,6 +90,8 @@ def main(
       norm_factor=norm_factor,
       value_network_scale=value_network_scale,
       l2_loss_weight=l2_loss_weight,
+      gumbel_loss_beta=gumbel_loss_beta,
+      gumbel_loss_clip=gumbel_loss_clip,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 
