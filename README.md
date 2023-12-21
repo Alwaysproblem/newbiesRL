@@ -58,7 +58,9 @@ conda create -n rltorch pytorch torchvision torchaudio pytorch-cuda=12.1 gymnasi
 
 ## Run
 
-You can run the code under conda environment by
+This project does not provide the trained Deep Reinforcement Learning model weight.
+
+You can start training model under conda environment by
 
 ```bash
 (rltorch) > python -m <project name>.main
