@@ -90,7 +90,7 @@ You can run the code under conda environment by
 
   ![AWR](AWR/AWRAgent_200.gif)
 
-- [x] [AC](https://proceedings.neurips.cc/paper/1999/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf) 
+- [x] [AC](https://proceedings.neurips.cc/paper/1999/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)
 
   ![AC](AC/A2CAgent_600.gif)
 
