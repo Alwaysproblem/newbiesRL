@@ -61,7 +61,13 @@ conda create -n rltorch pytorch torchvision torchaudio pytorch-cuda=12.1 gymnasi
 You can run the code under conda environment by
 
 ```bash
-(rltorch) > python -m xxx.main
+(rltorch) > python -m <project name>.main
+```
+
+For example (DDPG):
+
+```bash
+(rltorch) > python -m DDPG.main
 ```
 
 ## Algorithms
