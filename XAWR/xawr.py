@@ -12,6 +12,50 @@ from util.buffer import ReplayBuffer, Trajectory
 NORMEPS = 1e-8
 
 
+def gumbel_loss(pred, label, beta, clip):
+  """
+    Gumbel loss function
+
+    Describe in Appendix D.3 of
+
+    https://arxiv.org/pdf/2301.02328.pdf
+
+    Token from
+    https://github.com/Div99/XQL/blob/dff09afb893fe782be259c2420903f8dfb50ef2c/online/research/algs/gumbel_sac.py#L10)
+  """
+  assert pred.shape == label.shape, "Shapes were incorrect"
+  z = (label - pred) / beta
+  if clip is not None:
+    z = torch.clamp(z, -clip, clip)
+  loss = torch.exp(z) - z - 1
+  return loss.mean()
+
+
+def gumbel_rescale_loss(pred, label, beta, clip):
+  """
+    Gumbel rescale loss function
+
+    Describe in Appendix D.3 (NUMERIC STABILITY) of
+
+    https://arxiv.org/pdf/2301.02328.pdf
+
+    Token from
+    https://github.com/Div99/XQL/blob/dff09afb893fe782be259c2420903f8dfb50ef2c/online/research/algs/gumbel_sac.py#L18)
+  """
+  assert pred.shape == label.shape, "Shapes were incorrect"
+  z = (label - pred) / beta
+  if clip is not None:
+    z = torch.clamp(z, -clip, clip)
+  max_z = torch.max(z)
+  max_z = torch.where(
+      max_z < -1.0, torch.tensor(-1.0, dtype=torch.float, device=max_z.device),
+      max_z
+  )
+  max_z = max_z.detach()  # Detach the gradients
+  loss = torch.exp(z - max_z) - z * torch.exp(-max_z) - torch.exp(-max_z)
+  return loss.mean()
+
+
 def standardize(v):
   """Method to standardize a rank-1 np array."""
   assert len(v) > 1, "Cannot standardize vector of size 1"
@@ -127,7 +171,7 @@ class Critic(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class AWRAgent(Agent):
+class XAWRAgent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
@@ -152,6 +196,8 @@ class AWRAgent(Agent):
       critic_train_step=10,
       actor_train_step=100,
       l2_loss_weight=0.01,
+      gumbel_loss_beta=2,
+      gumbel_loss_clip=None,
       seed=0
   ):
 
@@ -200,7 +246,9 @@ class AWRAgent(Agent):
 
     self.forget_experience = forget_experience
 
-    self.val_loss = nn.MSELoss()
+    self.val_loss = partial(
+        gumbel_rescale_loss, beta=gumbel_loss_beta, clip=gumbel_loss_clip
+    )
     self.policy_loss = nn.MSELoss()
 
     self.scale_up_values = partial(
@@ -250,7 +298,7 @@ class AWRAgent(Agent):
     mcre = self.td_lambda_estimate(rewards, states)
     # mcre = standardize(mcre)
     n_mcre = self.scale_down_values(mcre)
-    val_loss = 0.5 * self.val_loss(n_mcre.detach(), self.critic.forward(states))
+    val_loss = self.val_loss(n_mcre.detach(), self.critic.forward(states))
     self.critic_optimizer.zero_grad()
     val_loss.backward()
     self.critic_optimizer.step()
