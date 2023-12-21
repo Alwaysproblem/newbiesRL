@@ -10,6 +10,7 @@ from util.buffer import Experience
 
 class Q(nn.Module):
   """ Actor (Policy) Model."""
+
   def __init__(
       self,
       state_dim,
@@ -18,7 +19,6 @@ class Q(nn.Module):
       seed=0,
       hidden_size=None,
       init_weight_gain=np.sqrt(2),
-      init_policy_weight_gain=1,
       init_bias=0
   ):
     """
@@ -49,24 +49,22 @@ class Q(nn.Module):
     # note:  After using `nn.Sequential`, you need to define a list with
     # note:  `nn.ModuleList` to construct the model graph.
     self.hidden_layers = nn.ModuleList([
-        nn.Sequential(
-            nn.Linear(in_size, out_size), nn.LeakyReLU()
-        ) for in_size, out_size in zip((state_dim, ) +
-                                       self.hidden_size, self.hidden_size)
+        nn.Sequential(nn.Linear(in_size, out_size), nn.LeakyReLU())
+        for in_size, out_size in zip((state_dim, ) +
+                                     self.hidden_size, self.hidden_size)
     ])
     self.hidden_layers.apply(init_weights)
 
     def init_output_weights(m):
       if isinstance(m, nn.Linear):
-        # nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leakyrelu')
-        # nn.init.constant_(m.bias, init_bias)
+
         nn.init.orthogonal_(m.weight, gain=init_weight_gain)
         nn.init.constant_(m.bias, init_bias)
 
-    # self.output_layer = nn.Linear(self.hidden_size[-1], action_space * n_atoms)
     self.output_layers = nn.ModuleList([
         nn.Sequential(
-            nn.Linear(self.hidden_size[-1], n_atoms), nn.LeakyReLU(), nn.Softmax(dim=-1)
+            nn.Linear(self.hidden_size[-1], n_atoms), nn.LeakyReLU(),
+            nn.Softmax(dim=-1)
         ) for _ in range(action_space)
     ])
 
@@ -76,7 +74,11 @@ class Q(nn.Module):
     x = self.bn(state)
     for hidden_layer in self.hidden_layers:
       x = hidden_layer(x)
-    out = torch.concat([torch.unsqueeze(output_layer(x), dim=1) for output_layer in self.output_layers], dim=1)
+    out = torch.concat([
+        torch.unsqueeze(output_layer(x), dim=1)
+        for output_layer in self.output_layers
+    ],
+                       dim=1)
     # x = self.output_layer(x)
     # x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
     # x = F.softmax(x, dim=-1)
@@ -89,6 +91,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class C51Agent(Agent):
   """Interacts with and learns form environment."""
+
   def __init__(
       self,
       state_dims,
