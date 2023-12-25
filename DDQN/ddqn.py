@@ -147,7 +147,7 @@ class DDQNAgent(Agent):
     )
 
     with torch.no_grad():
-      # r + (1 − done) × γ × max(Q(state))
+      # r + (1 − done) × γ × Q(state, argmax Q(state', a'))
       next_wanted_action = F.one_hot(
           (torch.argmax(self.qnetwork_local.forward(next_states), dim=1)),
           self.action_space
