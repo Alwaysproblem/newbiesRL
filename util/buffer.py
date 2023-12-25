@@ -11,9 +11,9 @@ class Experience:
 
   def __init__(
       self,
-      state,
-      action,
-      reward,
+      state=None,
+      action=None,
+      reward=None,
       next_state=None,
       done=None,
       log_prob=None,
