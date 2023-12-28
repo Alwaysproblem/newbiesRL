@@ -115,6 +115,10 @@ For example (DDPG):
 
     ![XDDPG](XDDPG/XDDPGAgent_200.gif)
 
+  - XTD3
+
+    ![XTD3](XTD3/XTD3Agent_100.gif)
+
 ## Reference
 
 - TrainMonitor and Generategif modified from [coax](https://github.com/coax-dev/coax)
