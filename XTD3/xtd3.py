@@ -1,4 +1,4 @@
-"""TD3 implementation with pytorch."""
+"""XTD3 implementation with pytorch."""
 import numpy as np
 import torch
 from torch import nn
