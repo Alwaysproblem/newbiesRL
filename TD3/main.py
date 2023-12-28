@@ -71,6 +71,8 @@ def main(
   max_sigma = 0.3
   min_sigma = 0.3
   decay_period = 100000
+  value_noise_clip = 0.5
+  value_noise_sigma = 0.5
 
   agent = Agent(
       state_dims=env.observation_space,
@@ -86,6 +88,8 @@ def main(
       max_sigma=max_sigma,
       min_sigma=min_sigma,
       decay_period=decay_period,
+      value_noise_clip=value_noise_clip,
+      value_noise_sigma=value_noise_sigma
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
   for i_episode in range(1, n_episodes + 1):
