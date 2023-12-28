@@ -74,50 +74,19 @@ For example (DDPG):
 
 ## Algorithms
 
-- [x] [DQN](https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf)
-
-  ![DQN](DQN/DQNAgent_200.gif)
-
-- [x] [DDQN](https://arxiv.org/pdf/1509.06461.pdf)
-
-  ![DDQN](DDQN/DDQNAgent_100.gif)
-
-- [x] [DDPG](https://arxiv.org/pdf/1509.02971.pdf)
-
-  ![DDPG](DDPG/DDPGAgent_200.gif)
-
-- [x] [PPO](https://arxiv.org/pdf/1707.06347.pdf)
-
-  ![PPO](PPO/PPOAgent_200.gif)
-
-- [x] [Distributed Q learning (C51)](https://arxiv.org/pdf/1707.06887.pdf)
-
-  ![C51](C51/C51Agent_100.gif)
-
-- [x] [AWR](https://openreview.net/attachment?id=H1gdF34FvS&name=original_pdf)
-
-  ![AWR](AWR/AWRAgent_200.gif)
-
-- [x] [AC](https://proceedings.neurips.cc/paper/1999/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf)
-
-  ![AC](AC/A2CAgent_600.gif)
-
-- [x] [TD3](https://arxiv.org/pdf/1802.09477.pdf)
-
-  ![TD3](TD3/TD3Agent_100.gif)
-
-- improve `AWR`, `DDPG` `TD3` with Gumbel Distribution Regression from [`XQL`](https://div99.github.io/XQL):
-  - XAWR
-
-    ![XAWR](XAWR/XAWRAgent_100.gif)
-
-  - XDDPG
-
-    ![XDDPG](XDDPG/XDDPGAgent_200.gif)
-
-  - XTD3
-
-    ![XTD3](XTD3/XTD3Agent_100.gif)
+| model |                                      paper link                                      |           After Training           |
+| :---: | :----------------------------------------------------------------------------------: | :--------------------------------: |
+|  DQN  |                    https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf                    |    ![DQN](DQN/DQNAgent_200.gif)    |
+| DDQN  |                         https://arxiv.org/pdf/1509.06461.pdf                         |  ![DDQN](DDQN/DDQNAgent_100.gif)   |
+| DDPG  |                         https://arxiv.org/pdf/1509.02971.pdf                         |  ![DDPG](DDPG/DDPGAgent_200.gif)   |
+|  PPO  |                         https://arxiv.org/pdf/1707.06347.pdf                         |    ![PPO](PPO/PPOAgent_200.gif)    |
+|  C51  |                         https://arxiv.org/pdf/1707.06887.pdf                         |    ![C51](C51/C51Agent_100.gif)    |
+|  AWR  |                   https://openreview.net/attachment?id=H1gdF34FvS                    |    ![AWR](AWR/AWRAgent_200.gif)    |
+|  AC   |                    https://proceedings.neurips.cc/paper/1999/file                    |     ![AC](AC/A2CAgent_600.gif)     |
+|  TD3  |                         https://arxiv.org/pdf/1802.09477.pdf                         |    ![TD3](TD3/TD3Agent_100.gif)    |
+| XAWR  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  ![XAWR](XAWR/XAWRAgent_100.gif)   |
+| XDDPG | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) | ![XDDPG](XDDPG/XDDPGAgent_200.gif) |
+| XTD3  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  ![XTD3](XTD3/XTD3Agent_100.gif)   |
 
 ## Reference
 
