@@ -312,8 +312,7 @@ class TD3Agent(Agent):
     self.critic_target_1.eval()
     self.actor_target.eval()
 
-    # noise
-
+    # noise ~ N(0, sigma)
     noise = torch.clamp(
         torch.normal(mean=0.0, std=self.value_noise_sigma, size=actions.size()),
         -self.value_noise_clip, self.value_noise_clip
@@ -351,8 +350,8 @@ class TD3Agent(Agent):
     critic_loss.backward()
     self.critic_optimizer.step()
 
-    # Here need to `Delayed policy updates`
-    # and I used `policy_freq = 1`
+    # Here, `Delayed policy updates` is needed
+    # This implementation will assume that `policy_freq = 1`.
     # Compute actor loss
     actor_loss = -self.critic.forward(states, self.actor.forward(states)).mean()
 

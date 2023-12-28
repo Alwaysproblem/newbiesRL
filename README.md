@@ -102,7 +102,11 @@ For example (DDPG):
 
   ![AC](AC/A2CAgent_600.gif)
 
-- improve `AWR`, `DDPG` with Gumbel Distribution Regression from [`XQL`](https://div99.github.io/XQL):
+- [x] [TD3](https://arxiv.org/pdf/1802.09477.pdf)
+
+  ![TD3](TD3/TD3Agent_100.gif)
+
+- improve `AWR`, `DDPG` `TD3` with Gumbel Distribution Regression from [`XQL`](https://div99.github.io/XQL):
   - XAWR
 
     ![XAWR](XAWR/XAWRAgent_100.gif)
