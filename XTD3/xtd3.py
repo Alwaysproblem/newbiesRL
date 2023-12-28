@@ -400,6 +400,14 @@ class XTD3Agent(Agent):
     current_q_1 = self.critic_1.forward(states, actions)
 
     # Compute critic loss
+    # Due to fact that the Q function fllows the Gumbel distribution,
+    # We only replace the loss function with the Gumbel loss function.
+    # The details can be found in the paper below:
+    # https://arxiv.org/pdf/2301.02328.pdf
+    # Appendix C (EXTREME Q-LEARNING) and
+    # the Q value Iteration part of C.1 (X-QL)
+
+    # Compute critic loss
     critic_loss = self.val_loss(current_q, target_q
                                 ) + self.val_1_loss(current_q_1, target_q)
 
