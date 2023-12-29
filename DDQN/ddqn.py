@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from util.buffer import ReplayBuffer
 from util.agent import Agent
 from util.buffer import Experience
+from util.buffer import ProportionalPrioritizedReplayBuffer
 
 
 class Q(nn.Module):
@@ -73,12 +73,13 @@ class DDQNAgent(Agent):
     self.optimizer = torch.optim.Adam(self.qnetwork_local.parameters(), lr=lr)
 
     # Replay memory
-    self.memory = ReplayBuffer(max_size=mem_size)
+    self.memory = ProportionalPrioritizedReplayBuffer(max_size=mem_size)
 
     self.forget_experience = forget_experience
     self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())
-    # self.loss = nn.HuberLoss()
-    self.loss = nn.MSELoss()
+
+    self.loss = nn.SmoothL1Loss()
+    # self.loss = nn.MSELoss()
 
   def learn(self, iteration):
     if len(self.memory) > self.batch_size:
@@ -159,7 +160,17 @@ class DDQNAgent(Agent):
           keepdim=True
       )
 
-    loss = self.loss(predicted_targets, labels).to(device)
+    self.memory.update(torch.abs(predicted_targets - labels).squeeze().tolist())
+
+    sample_weight_ratio = torch.Tensor(
+        self.memory.sample_weights
+    ).unsqueeze(1).to(device) * (labels - predicted_targets).detach()
+
+    # Sampled loss function
+    loss = self.loss(
+        sample_weight_ratio * predicted_targets, sample_weight_ratio * labels
+    )
+    # loss = self.loss(predicted_targets, labels)
     self.optimizer.zero_grad()
     loss.backward()
     self.optimizer.step()
