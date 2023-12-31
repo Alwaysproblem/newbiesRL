@@ -27,7 +27,7 @@
 
 import math
 import re
-from typing import Any, Tuple, Optional, TypeVar, Union
+from typing import Any, Tuple, Optional, Union
 
 import numpy as np
 import torch as th
@@ -36,6 +36,38 @@ from torch import distributions as pyd
 from torch.nn import functional as F
 from torch.distributions import Distribution
 from torch.distributions.utils import _standard_normal
+
+
+def schedule(schdl: str, step: int) -> float:
+  """Exploration noise schedule.
+
+    Args:
+        schdl (str): Schedule mode.
+        step (int): global training step.
+
+    Returns:
+        Standard deviation.
+    """
+  try:
+    return float(schdl)
+  except ValueError:
+    match = re.match(r"linear\((.+),(.+),(.+)\)", schdl)
+    if match:
+      init, final, duration = (float(g) for g in match.groups())
+      mix = np.clip(step / duration, 0.0, 1.0)
+      return (1.0 - mix) * init + mix * final
+    match = re.match(r"step_linear\((.+),(.+),(.+),(.+),(.+)\)", schdl)
+    if match:
+      init, final1, duration1, final2, duration2 = (
+          float(g) for g in match.groups()
+      )
+      if step <= duration1:
+        mix = np.clip(step / duration1, 0.0, 1.0)
+        return (1.0 - mix) * init + mix * final1
+      else:
+        mix = np.clip((step - duration1) / duration2, 0.0, 1.0)
+        return (1.0 - mix) * final1 + mix * final2
+  raise NotImplementedError(schdl)
 
 
 class BaseDistribution(Distribution):
@@ -358,18 +390,13 @@ class SquashedNormal(BaseDistribution):
     return self.dist.log_prob(actions)
 
 
-SelfDiagonalGaussian = TypeVar("SelfDiagonalGaussian", bound="DiagonalGaussian")
-
-
 class DiagonalGaussian(BaseDistribution):
   """Diagonal Gaussian distribution for 'Box' tasks."""
 
   def __init__(self) -> None:
     super().__init__()
 
-  def __call__(
-      self: SelfDiagonalGaussian, mu: th.Tensor, sigma: th.Tensor
-  ) -> SelfDiagonalGaussian:
+  def __call__(self, mu: th.Tensor, sigma: th.Tensor):
     """Create the distribution.
 
         Args:
@@ -573,8 +600,10 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
         eps (float): A small value to avoid numerical instability.
         theta (float): The rate of mean reversion.
         dt (float): Timestep for the noise.
-        stddev_schedule (str): Use the exploration std schedule.
-        stddev_clip (float): The exploration std clip range.
+        sigma_schedule (str): Use the exploration sigma schedule.
+                              example: "linear(1.0, 0.1, 100000)"
+                              if sigma_schedule is not empty, sigma will be ignored.
+                              and if sigma is torch.Tensor type, sigma_schedule will be ignored.
 
     Returns:
         Ornstein-Uhlenbeck noise instance.
@@ -589,6 +618,7 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
       eps: float = 1e-6,
       theta: float = 0.15,
       dt: float = 1e-2,
+      sigma_schedule: str = "",
   ) -> None:
     super().__init__()
 
@@ -600,6 +630,11 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
     self.theta = theta
     self.dt = dt
     self.noise_prev: Union[None, th.Tensor] = None
+    if sigma_schedule and isinstance(sigma, float):
+      self.sigma_schedule = sigma_schedule
+    else:
+      self.sigma_schedule = ""
+    self.step = 0
 
   def __call__(self, noiseless_action: th.Tensor):
     """Create the action noise.
@@ -613,6 +648,8 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
     self.noiseless_action = noiseless_action
     if self.noise_prev is None:
       self.noise_prev = th.zeros_like(self.noiseless_action)
+    if self.sigma_schedule:
+      self.sigma = schedule(self.sigma_schedule, self.step)
     return self
 
   def _clamp(self, x: th.Tensor) -> th.Tensor:
@@ -636,6 +673,7 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
         Returns:
             A sample_shape shaped sample.
         """
+    self.step += 1
     noise = (
         self.noise_prev + self.theta *
         (th.ones_like(self.noise_prev) * self.mu - self.noise_prev) *
@@ -672,38 +710,6 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
   def mode(self) -> th.Tensor:
     """Returns the mode of the distribution."""
     return self.noiseless_action
-
-
-def schedule(schdl: str, step: int) -> float:
-  """Exploration noise schedule.
-
-    Args:
-        schdl (str): Schedule mode.
-        step (int): global training step.
-
-    Returns:
-        Standard deviation.
-    """
-  try:
-    return float(schdl)
-  except ValueError:
-    match = re.match(r"linear\((.+),(.+),(.+)\)", schdl)
-    if match:
-      init, final, duration = (float(g) for g in match.groups())
-      mix = np.clip(step / duration, 0.0, 1.0)
-      return (1.0 - mix) * init + mix * final
-    match = re.match(r"step_linear\((.+),(.+),(.+),(.+),(.+)\)", schdl)
-    if match:
-      init, final1, duration1, final2, duration2 = (
-          float(g) for g in match.groups()
-      )
-      if step <= duration1:
-        mix = np.clip(step / duration1, 0.0, 1.0)
-        return (1.0 - mix) * init + mix * final1
-      else:
-        mix = np.clip((step - duration1) / duration2, 0.0, 1.0)
-        return (1.0 - mix) * final1 + mix * final2
-  raise NotImplementedError(schdl)
 
 
 class TruncatedNormalNoise(BaseDistribution):

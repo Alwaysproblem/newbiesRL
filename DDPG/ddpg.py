@@ -6,49 +6,7 @@ from torch.nn import functional as F
 from util.buffer import ReplayBuffer
 from util.agent import Agent
 from util.buffer import Experience
-
-
-class OUNoise(object):
-  # pylint: disable=line-too-long
-  """
-    Taken from https://github.com/vitchyr/rlkit/blob/master/rlkit/exploration_strategies/ou_strategy.py
-    """
-
-  def __init__(
-      self,
-      action_space,
-      mu=0.0,
-      theta=0.15,
-      max_sigma=0.3,
-      min_sigma=0.3,
-      decay_period=100000
-  ):
-    self.mu = mu
-    self.theta = theta
-    self.sigma = max_sigma
-    self.max_sigma = max_sigma
-    self.min_sigma = min_sigma
-    self.decay_period = decay_period
-    self.action_dim = action_space.shape[0]
-    self.low = action_space.low
-    self.high = action_space.high
-    self.reset()
-
-  def reset(self):
-    self.state = np.ones(self.action_dim) * self.mu
-
-  def evolve_state(self):
-    x = self.state
-    dx = self.theta * (self.mu -
-                       x) + self.sigma * np.random.randn(self.action_dim)
-    self.state = x + dx
-    return self.state
-
-  def get_action(self, action, t=0):
-    ou_state = self.evolve_state()
-    self.sigma = self.max_sigma - (self.max_sigma - self.min_sigma
-                                   ) * min(1.0, t / self.decay_period)
-    return np.clip(action + ou_state, self.low, self.high)
+from util.dist import OrnsteinUhlenbeckNoise
 
 
 class Actor(nn.Module):
@@ -193,14 +151,17 @@ class DDPGAgent(Agent):
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.beta = beta
-    self.noise = OUNoise(
-        action_space,
+    self.noise = OrnsteinUhlenbeckNoise(
         mu=mu,
+        sigma=max_sigma,
+        low=torch.from_numpy(action_space.low).to(device),
+        high=torch.from_numpy(action_space.high).to(device),
+        eps=0,
         theta=theta,
-        max_sigma=max_sigma,
-        min_sigma=min_sigma,
-        decay_period=decay_period,
+        dt=1,
+        sigma_schedule=f"linear({max_sigma}, {min_sigma}, {decay_period})"
     )
+
     self.update_tau = update_tau
 
     self.actor = Actor(
@@ -250,7 +211,7 @@ class DDPGAgent(Agent):
       action = self.actor.forward(state)
     return action.cpu().data.numpy()
 
-  def take_action(self, state, explore=False, step=0):
+  def take_action(self, state, explore=False):
     """Returns action for given state as per current policy
         Params
         =======
@@ -260,7 +221,8 @@ class DDPGAgent(Agent):
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
     action_values = self.action(state=state, mode="eval").squeeze(0)
     if explore:
-      action_values = self.noise.get_action(action_values, step)
+      self.noise(torch.from_numpy(action_values).to(device))
+      action_values = self.noise.sample().cpu().data.numpy()
 
     # Clip the output according to the action space of the env
     action_values = np.clip(
