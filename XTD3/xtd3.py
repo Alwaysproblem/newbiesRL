@@ -281,12 +281,13 @@ class XTD3Agent(Agent):
 
     # Theta 2 Critic network
     self.critic_1 = Critic(self.state_dims, self.action_space).to(device)
-    self.critic_target_1 = Critic(self.state_dims, self.action_space).to(device)
-    self.critic_target_1.load_state_dict(self.critic_1.state_dict())
+    self.critic_1_target = Critic(self.state_dims, self.action_space).to(device)
+    self.critic_1_target.load_state_dict(self.critic_1.state_dict())
 
-    self.critic_optimizer = torch.optim.Adam(
-        self.critic.parameters(), lr=self.lr_critic
-    )
+    self.critic_optimizer = torch.optim.Adam([
+        *self.critic.parameters(), *self.critic_1.parameters()
+    ],
+                                             lr=self.lr_critic)
 
     # Replay memory
     self.memory = ReplayBuffer(max_size=mem_size)
@@ -367,7 +368,7 @@ class XTD3Agent(Agent):
     self.critic.train()
     self.critic_target.eval()
     self.critic_1.train()
-    self.critic_target_1.eval()
+    self.critic_1_target.eval()
     self.actor_target.eval()
 
     # noise ~ N(0, sigma)
@@ -381,7 +382,7 @@ class XTD3Agent(Agent):
         next_states,
         self.actor_target.forward(next_states) + noise
     )
-    target_q_1 = self.critic_target_1.forward(
+    target_q_1 = self.critic_1_target.forward(
         next_states,
         self.actor_target.forward(next_states) + noise
     )
@@ -428,6 +429,7 @@ class XTD3Agent(Agent):
 
     self.update_actor_target_network()
     self.update_critic_target_network()
+    self.update_critic_1_target_network()
 
   def soft_update(self, local_model, target_model):
     """
@@ -449,3 +451,6 @@ class XTD3Agent(Agent):
 
   def update_critic_target_network(self):
     self.soft_update(self.critic, self.critic_target)
+
+  def update_critic_1_target_network(self):
+    self.soft_update(self.critic_1, self.critic_1_target)
