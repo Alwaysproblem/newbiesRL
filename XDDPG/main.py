@@ -97,8 +97,8 @@ def main(
   for i_episode in range(1, n_episodes + 1):
     state, _ = env.reset()
     score = 0
-    for t, _ in enumerate(repeat(0, max_t)):
-      action = agent.take_action(state=state, explore=True, step=t * i_episode)
+    for _ in repeat(0, max_t):
+      action = agent.take_action(state=state, explore=True)
       next_state, reward, done, _, _ = env.step(action)
       agent.remember(Experience(state, action, reward, next_state, done))
       agent.learn(learn_iteration)
