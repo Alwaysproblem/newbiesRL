@@ -300,7 +300,7 @@ class XDDPGAgent(Agent):
     states = torch.from_numpy(np.vstack([e.state for e in experiences])
                               ).float().to(device)
     actions = torch.from_numpy(np.vstack([e.action for e in experiences])
-                               ).long().to(device)
+                               ).float().to(device)
     rewards = torch.from_numpy(np.vstack([e.reward for e in experiences])
                                ).float().to(device)
     next_states = torch.from_numpy(
