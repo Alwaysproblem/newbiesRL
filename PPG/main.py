@@ -1,4 +1,4 @@
-"""main executable file for ppo"""
+"""main executable file for PPG"""
 import os
 import logging
 from itertools import repeat
@@ -10,9 +10,9 @@ from util.wrappers import TrainMonitor
 from util.buffer import Experience, Trajectory
 from collections import deque
 # pylint: disable=invalid-name
-from PPO.ppo import PPOAgent as PPO_torch
+from PPG.ppg import PPGAgent as PPG_torch
 
-Agent = PPO_torch
+Agent = PPG_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -60,6 +60,8 @@ def main(
   num_workers = 32
   beta = 0.01
   iteration = 1000
+  aux_iteration = 10
+  aux_kl_beta = 1
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -73,10 +75,12 @@ def main(
       gae_lambda=gae_lambda,
       beta=beta,
       clip_eps=clip_eps,
+      aux_iteration=aux_iteration,
+      aux_kl_beta=aux_kl_beta,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 
-  policy_loss, val_loss = np.nan, np.nan
+  policy_loss, val_loss, aux_loss = np.nan, np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
     for _ in range(num_workers):
@@ -103,14 +107,15 @@ def main(
         print(" " * os.get_terminal_size().columns, end="\r")
         print(
             f"\rEpisode {i_episode}\t"
-            f"Average Score {np.mean(scores_window):.2f}\t"
-            f"policy loss {policy_loss:.9f}\t"
-            f"value loss {val_loss:.2f}",
+            f"Average Score: {np.mean(scores_window):.2f}\t"
+            f"policy loss: {policy_loss:.9f}\t"
+            f"value loss: {val_loss:.2f}\t",
+            f"auxiliary loss: {aux_loss:.2f}",
             end="\r"
         )
 
       agent.remember(traj)
-    policy_loss, val_loss = agent.learn(iteration=iteration)
+    policy_loss, val_loss, aux_loss = agent.learn(iteration=iteration)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")

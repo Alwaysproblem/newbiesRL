@@ -2,11 +2,11 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import Categorical
+from torch.distributions import Categorical, kl_divergence
 from torch.nn import functional as F
 
 from util.agent import Agent
-from util.buffer import ReplayBuffer, Trajectory
+from util.buffer import ReplayBuffer, Trajectory, Experience
 
 
 def standardize(v):
@@ -44,6 +44,7 @@ class Actor(nn.Module):
     self.seed = torch.manual_seed(seed)
     self.fc1 = nn.Linear(state_dim, fc1_unit)
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
+    self.fc3 = nn.Linear(fc2_unit, 1)
     self.fc_policy = nn.Linear(fc2_unit, action_space)
 
     nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
@@ -62,6 +63,12 @@ class Actor(nn.Module):
     x = F.relu(self.fc2(x))
     pi = F.softmax(self.fc_policy(x), dim=1)
     return pi
+
+  def auxiliary_pred(self, x):
+    x = F.relu(self.fc1(x))
+    x = F.relu(self.fc2(x))
+    x = F.relu(self.fc3(x))
+    return x
 
 
 class Critic(nn.Module):
@@ -114,7 +121,7 @@ class Critic(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class PPOAgent(Agent):
+class PPGAgent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
@@ -134,6 +141,8 @@ class PPOAgent(Agent):
       beta=0,
       value_clip=False,
       grad_clip=0.5,
+      aux_iteration=10,
+      aux_kl_beta=1,
       seed=0,
   ):
 
@@ -151,6 +160,9 @@ class PPOAgent(Agent):
     self.clip_eps = clip_eps
     self.value_clip = value_clip
     self.grad_clip = grad_clip
+    self.aux_iteration = aux_iteration
+    self.aux_kl_beta = aux_kl_beta
+
     self.dist_class = Categorical
 
     #Q- Network
@@ -166,17 +178,19 @@ class PPOAgent(Agent):
 
     # Replay memory
     self.memory = ReplayBuffer(max_size=mem_size)
+    self.auxiliary_buffer = ReplayBuffer()
 
     self.forget_experience = forget_experience
 
     self.val_loss = nn.MSELoss()
     self.policy_loss = nn.MSELoss()
+    self.aux_loss = nn.MSELoss()
 
   def learn(self, iteration: int = 10, replace=True):
     """Update value parameters using given batch of experience tuples."""
-    polcy_loss, val_loss = np.nan, np.nan
+    polcy_loss, val_loss, aux_loss = np.nan, np.nan, np.nan
     if len(self.memory) < iteration:
-      return polcy_loss, val_loss
+      return polcy_loss, val_loss, aux_loss
 
     polcy_loss = []
     val_loss = []
@@ -184,15 +198,19 @@ class PPOAgent(Agent):
         num_samples=iteration, replace=replace
     )
     if not trajectories:
-      return np.nan, np.nan
+      return np.nan, np.nan, np.nan
+
     for trajectory in trajectories:
       polcy_loss_, val_loss_ = self._learn(trajectory)
+
       polcy_loss.append(polcy_loss_.cpu().data.numpy())
       val_loss.append(val_loss_.cpu().data.numpy())
 
+    aux_loss = self.train_auxiliary()
+
     return (
-        np.array(polcy_loss).mean(),
-        np.array(val_loss).mean(),
+        np.array(polcy_loss).mean(), np.array(val_loss).mean(),
+        np.array(aux_loss).mean()
     )
 
   def _train_policy(self, states, actions, log_prob_old, advs):
@@ -243,6 +261,48 @@ class PPOAgent(Agent):
     self.critic_optimizer.step()
     return val_loss
 
+  def train_auxiliary(self):
+    """Update value parameters using given batch of experience tuples."""
+    aux_loss = np.nan
+    if len(self.auxiliary_buffer) < self.aux_iteration:
+      return aux_loss
+
+    experience = self.auxiliary_buffer.dequeue()
+
+    if not experience:
+      return np.nan
+
+    aux_loss = []
+    for _ in range(self.aux_iteration):
+      aux_loss_ = self._train_auxiliary(
+          experience.state, experience.v_targets, experience.actions_dist_old
+      )
+      aux_loss.append(aux_loss_.detach().cpu())
+
+    return aux_loss
+
+  def _train_auxiliary(self, states, v_targets, actions_dist_old):
+
+    # Update the critic given the targets
+    _, action_dist_new = self.action(state=states, mode="train")
+
+    value_aux = self.actor.auxiliary_pred(states)
+
+    aux_loss = 0.5 * self.aux_loss(value_aux, v_targets.detach())
+
+    aux_loss += self.aux_kl_beta * kl_divergence(
+        actions_dist_old, action_dist_new
+    ).mean()
+
+    self.actor_optimizer.zero_grad()
+    aux_loss.backward()
+    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+    self.actor_optimizer.step()
+
+    self._train_critic(states=states, v_targets=v_targets)
+
+    return aux_loss
+
   def _learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
                               ).float().to(device)
@@ -269,6 +329,17 @@ class PPOAgent(Agent):
 
     # update value network
     val_loss = self._train_critic(states, v_targets)
+
+    old_pi = self.actor.forward(states).detach()
+    # add the pair <st, v_target, action_distribution>
+    self.auxiliary_buffer.enqueue(
+        Experience(
+            state=states,
+            v_targets=v_targets,
+            actions_dist_old=self.dist_class(old_pi)
+        )
+    )
+
     return policy_loss, val_loss
 
   def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
