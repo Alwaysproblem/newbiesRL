@@ -96,7 +96,7 @@ def main(
     state, _ = env.reset()
     score = 0
     for _ in repeat(0, max_t):
-      action = agent.take_action(state=state, explore=True)
+      action = agent.take_action(state=state, explore=False)
       next_state, reward, done, _, _ = env.step(action)
       agent.remember(Experience(state, action, reward, next_state, done))
       agent.learn(learn_iteration)

@@ -343,7 +343,7 @@ class XSACAgent(Agent):
             state (array_like): current state
             epsilon (float): epsilon, for epsilon-greedy action selection
         """
-    if not explore:
+    if explore:
       return self.action_space_env.sample()
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
