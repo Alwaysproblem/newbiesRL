@@ -167,7 +167,6 @@ class PPGAgent(Agent):
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
-    self.actor_old = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.Adam(
@@ -216,7 +215,7 @@ class PPGAgent(Agent):
 
   def _train_policy(self, states, actions, log_prob_old, advs):
     # compute the policy distribution
-    _, action_dist = self.action(state=states, actor_old=False, mode="train")
+    _, action_dist = self.action(state=states, mode="train")
 
     # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
     # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
@@ -285,9 +284,7 @@ class PPGAgent(Agent):
   def _train_auxiliary(self, states, v_targets, actions_dist_old):
 
     # Update the critic given the targets
-    _, action_dist_new = self.action(
-        state=states, actor_old=False, mode="train"
-    )
+    _, action_dist_new = self.action(state=states, mode="train")
 
     value_aux = self.actor.auxiliary_pred(states)
 
@@ -334,7 +331,7 @@ class PPGAgent(Agent):
     val_loss = self._train_critic(states, v_targets)
 
     old_pi = self.actor.forward(states).detach()
-    # add the pair <st, v_target>
+    # add the pair <st, v_target, action_distribution>
     self.auxiliary_buffer.enqueue(
         Experience(
             state=states,
@@ -433,20 +430,19 @@ class PPGAgent(Agent):
       gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
     return gaes
 
-  def action(self, state, mode="eval", actor_old=True):
-    actor = self.actor_old if actor_old else self.actor
+  def action(self, state, mode="eval"):
     if mode == "train":
-      actor.train()
+      self.actor.train()
     else:
-      actor.eval()
+      self.actor.eval()
 
-    pi = actor.forward(state)
+    pi = self.actor.forward(state)
     dist = self.dist_class(pi)
     action = dist.sample()
     self.dist = dist
     return action.cpu().data.numpy(), dist
 
-  def take_action(self, state, actor_old=True, _=0):
+  def take_action(self, state, _=0):
     """Returns action for given state as per current policy
         Params
         =======
@@ -456,7 +452,7 @@ class PPGAgent(Agent):
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
-      action_values, *_ = self.action(state, actor_old=actor_old)
+      action_values, *_ = self.action(state)
 
     return action_values.item()
 
@@ -466,6 +462,3 @@ class PPGAgent(Agent):
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
-
-  def update_actor_old(self):
-    return self.actor_old.load_state_dict(self.actor.state_dict())

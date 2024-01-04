@@ -83,8 +83,6 @@ def main(
   policy_loss, val_loss, aux_loss = np.nan, np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
-    agent.update_actor_old()
-
     for _ in range(num_workers):
       state, _ = env.reset()
       score = 0

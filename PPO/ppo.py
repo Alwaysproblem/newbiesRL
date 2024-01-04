@@ -151,10 +151,10 @@ class PPOAgent(Agent):
     self.clip_eps = clip_eps
     self.value_clip = value_clip
     self.grad_clip = grad_clip
+    self.dist_class = Categorical
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
-    self.actor_old = Actor(state_dims, action_space).to(device)
     self.critic = Critic(state_dims).to(device)
 
     self.actor_optimizer = torch.optim.Adam(
@@ -190,7 +190,58 @@ class PPOAgent(Agent):
       polcy_loss.append(polcy_loss_.cpu().data.numpy())
       val_loss.append(val_loss_.cpu().data.numpy())
 
-    return np.array(polcy_loss).mean(), np.array(val_loss).mean()
+    return (
+        np.array(polcy_loss).mean(),
+        np.array(val_loss).mean(),
+    )
+
+  def _train_policy(self, states, actions, log_prob_old, advs):
+    # compute the policy distribution
+    _, action_dist = self.action(state=states, mode="train")
+
+    # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
+    # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
+    importance_ratio = torch.exp(
+        action_dist.log_prob(actions.T).T - log_prob_old
+    )
+
+    # clip it into (1 - ϵ) (1 + ϵ)
+    clip_ratio = torch.clamp(
+        importance_ratio, min=1 - self.clip_eps, max=1 + self.clip_eps
+    )
+
+    j_clip = -torch.min(importance_ratio, clip_ratio) * advs.detach()
+
+    policy_loss = torch.mean(j_clip - self.beta * action_dist.entropy())
+
+    self.actor_optimizer.zero_grad()
+    policy_loss.backward()
+    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+    self.actor_optimizer.step()
+    return policy_loss
+
+  def _train_critic(self, states, v_targets):
+    # Update the critic given the targets
+    if self.value_clip:
+      v_loss_unclipped = (self.critic.forward(states) - v_targets) ** 2
+      v_clipped = self.critic.forward(states).detach() + torch.clamp(
+          self.critic.forward(states).detach() - v_targets,
+          -self.clip_eps,
+          self.clip_eps,
+      )
+      v_loss_clipped = (v_clipped - self.critic.forward(states)) ** 2
+      v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+      val_loss = 0.5 * v_loss_max.mean()
+    else:
+      val_loss = 0.5 * self.val_loss(
+          self.critic.forward(states), v_targets.detach()
+      )
+
+    self.critic_optimizer.zero_grad()
+    val_loss.backward()
+    nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
+    self.critic_optimizer.step()
+    return val_loss
 
   def _learn(self, trajectory: Trajectory):
     states = torch.from_numpy(np.vstack([e.state for e in trajectory])
@@ -208,60 +259,16 @@ class PPOAgent(Agent):
         np.vstack([e.log_prob for e in trajectory])
     ).float().to(device)
 
+    # Compute value function target V for each state.
     advs, v_targets = self.calc_adv_and_v_target(
         states, rewards, next_states, terminates
     )
 
-    if self.value_clip:
-      v_loss_unclipped = (self.critic.forward(states) - v_targets) ** 2
-      v_clipped = self.critic.forward(states).detach() + torch.clamp(
-          self.critic.forward(states).detach() - v_targets,
-          -self.clip_eps,
-          self.clip_eps,
-      )
-      v_loss_clipped = (v_clipped - self.critic.forward(states)) ** 2
-      v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-      val_loss = 0.5 * v_loss_max.mean()
-    else:
-      val_loss = 0.5 * self.val_loss(
-          self.critic.forward(states), v_targets.detach()
-      )
+    # update policy network with L_clip
+    policy_loss = self._train_policy(states, actions, log_prob_old, advs)
 
-    # compute the old policy distribution
-    # with torch.no_grad():
-    #   _, action_dist_old = self.action(
-    #       state=states, actor_old=True, mode="eval"
-    #   )
-    #   log_prob_old = action_dist_old.log_prob(actions.T).detach()
-
-    # compute the policy distribution
-    _, action_dist = self.action(state=states, actor_old=False, mode="train")
-
-    # For implementation of the π(aₜ|sₜ) / π(aₜ|sₜ)[old]
-    # Here, we use the exp(log(π(aₜ|sₜ)) - log(π(aₜ|sₜ)[old]))
-    importance_ratio = torch.exp(
-        action_dist.log_prob(actions.T).T - log_prob_old
-    )
-    # importance_ratio = torch.exp(
-    #     action_dist.log_prob(actions.T) - log_prob_old
-    # ).T
-
-    # clip it into (1 - ϵ) (1 + ϵ)
-    clip_ratio = torch.clamp(
-        importance_ratio, min=1 - self.clip_eps, max=1 + self.clip_eps
-    )
-
-    j_clip = -torch.min(importance_ratio, clip_ratio) * advs.detach()
-
-    policy_loss = torch.mean(j_clip - self.beta * action_dist.entropy())
-
-    self.actor_optimizer.zero_grad()
-    self.critic_optimizer.zero_grad()
-    policy_loss.backward()
-    val_loss.backward()
-    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
-    self.actor_optimizer.step()
-    self.critic_optimizer.step()
+    # update value network
+    val_loss = self._train_critic(states, v_targets)
     return policy_loss, val_loss
 
   def calc_adv_and_v_target(self, states, rewards, next_states, terminates):
@@ -352,20 +359,19 @@ class PPOAgent(Agent):
       gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
     return gaes
 
-  def action(self, state, mode="eval", actor_old=True):
-    actor = self.actor_old if actor_old else self.actor
+  def action(self, state, mode="eval"):
     if mode == "train":
-      actor.train()
+      self.actor.train()
     else:
-      actor.eval()
+      self.actor.eval()
 
-    pi = actor.forward(state)
-    dist = Categorical(pi)
+    pi = self.actor.forward(state)
+    dist = self.dist_class(pi)
     action = dist.sample()
     self.dist = dist
     return action.cpu().data.numpy(), dist
 
-  def take_action(self, state, actor_old=True, _=0):
+  def take_action(self, state, _=0):
     """Returns action for given state as per current policy
         Params
         =======
@@ -375,7 +381,7 @@ class PPOAgent(Agent):
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
-      action_values, *_ = self.action(state, actor_old=actor_old)
+      action_values, *_ = self.action(state)
 
     return action_values.item()
 
@@ -385,6 +391,3 @@ class PPOAgent(Agent):
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
-
-  def update_actor_old(self):
-    return self.actor_old.load_state_dict(self.actor.state_dict())
