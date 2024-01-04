@@ -48,6 +48,7 @@ This is some naive implementations of deep reinforcement learning algorithms. Th
   - [Environment Preparation (torch users)](#environment-preparation-torch-users)
   - [Run](#run)
   - [Algorithms](#algorithms)
+    - [Improved with Gumbel Distribution Regression from XQL](#improved-with-gumbel-distribution-regression-from-xql)
   - [Reference](#reference)
 
 ## Environment Preparation (torch users)
@@ -74,22 +75,104 @@ For example (DDPG):
 
 ## Algorithms
 
-| model |                                      paper link                                      |                         After Training                         |
-| :---: | :----------------------------------------------------------------------------------: | :------------------------------------------------------------: |
-|  DQN  |                    https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf                    |   <img src="DQN/DQNAgent_200.gif" width="30%" height="30%"/>   |
-| DDQN  |                         https://arxiv.org/pdf/1509.06461.pdf                         |  <img src="DDQN/DDQNAgent_100.gif" width="30%" height="30%"/>  |
-| DDPG  |                         https://arxiv.org/pdf/1509.02971.pdf                         |  <img src="DDPG/DDPGAgent_200.gif" width="30%" height="30%"/>  |
-|  PPO  |                         https://arxiv.org/pdf/1707.06347.pdf                         |   <img src="PPO/PPOAgent_200.gif" width="30%" height="30%"/>   |
-|  C51  |                         https://arxiv.org/pdf/1707.06887.pdf                         |   <img src="C51/C51Agent_100.gif" width="30%" height="30%"/>   |
-|  AWR  |                   https://openreview.net/attachment?id=H1gdF34FvS                    |   <img src="AWR/AWRAgent_200.gif" width="30%" height="30%"/>   |
-|  AC   |                    https://proceedings.neurips.cc/paper/1999/file                    |   <img src="AC/A2CAgent_600.gif" width="30%" height="30%"/>    |
-|  TD3  |                         https://arxiv.org/pdf/1802.09477.pdf                         |   <img src="TD3/TD3Agent_100.gif" width="30%" height="30%"/>   |
-| SACv1 |                         https://arxiv.org/pdf/1801.01290.pdf                         | <img src="SACv1/SACv1Agent_100.gif" width="30%" height="30%"/> |
-| SACv2 |                         https://arxiv.org/pdf/1812.05905.pdf                         | <img src="SACv2/SACv2Agent_200.gif" width="30%" height="30%"/> |
-| XAWR  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  <img src="XAWR/XAWRAgent_100.gif" width="30%" height="30%"/>  |
-| XDDPG | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) | <img src="XDDPG/XDDPGAgent_200.gif" width="30%" height="30%"/> |
-| XTD3  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  <img src="XTD3/XTD3Agent_100.gif" width="30%" height="30%"/>  |
-| XSAC  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  <img src="XSAC/XSACAgent_100.gif" width="30%" height="30%"/>  |
+<table border="0">
+  <tbody>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="DQN/DQNAgent_200.gif" alt="pic">
+        <br>
+        <p><a href="https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf">DQN</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="DDQN/DDQNAgent_100.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1509.06461.pdf">DDQN</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="DDPG/DDPGAgent_200.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1509.02971.pdf">DDPG</a></p>
+      </td>
+    </tr>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="PPO/PPOAgent_200.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1707.06347.pdf">PPO</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="PPG/PPGAgent_100.gif" alt="pic">
+        <br>
+        <p><a href="https://proceedings.mlr.press/v139/cobbe21a/cobbe21a.pdf">PPG</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="C51/C51Agent_100.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1707.06887.pdf">C51</a></p>
+      </td>
+    </tr>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="AWR/AWRAgent_200.gif" alt="pic">
+        <br>
+        <p><a href="https://openreview.net/attachment?id=H1gdF34FvS">AWR</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="AC/A2CAgent_600.gif" alt="pic">
+        <br>
+        <p><a href="https://proceedings.neurips.cc/paper/1999/file">AC</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="TD3/TD3Agent_100.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1802.09477.pdf">TD3</a></p>
+      </td>
+    </tr>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="SACv1/SACv1Agent_100.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1801.01290.pdf">SACv1</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="SACv2/SACv2Agent_200.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1812.05905.pdf">SACv2</a></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+### Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL)
+
+<table border="0">
+  <tbody>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="XAWR/XAWRAgent_100.gif" alt="pic">
+        <br>
+        <p>XAWR</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="XDDPG/XDDPGAgent_200.gif" alt="pic">
+        <br>
+        <p>XDDPG</a></p>
+      </td>
+    </tr>
+    <tr align="center" >
+      <td>
+         <img width="100%" height="100%" src="XTD3/XTD3Agent_100.gif" alt="pic">
+        <br>
+        <p>XTD3</a></p>
+      </td>
+      <td>
+         <img width="100%" height="100%" src="XSAC/XSACAgent_100.gif" alt="pic">
+        <br>
+        <p>XSAC</a></p>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Reference
 
