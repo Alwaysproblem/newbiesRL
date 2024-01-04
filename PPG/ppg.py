@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import Categorical
+from torch.distributions import Categorical, kl_divergence
 from torch.nn import functional as F
 
 from util.agent import Agent
@@ -141,6 +141,8 @@ class PPGAgent(Agent):
       beta=0,
       value_clip=False,
       grad_clip=0.5,
+      aux_iteration=10,
+      aux_kl_beta=1,
       seed=0,
   ):
 
@@ -158,6 +160,10 @@ class PPGAgent(Agent):
     self.clip_eps = clip_eps
     self.value_clip = value_clip
     self.grad_clip = grad_clip
+    self.aux_iteration = aux_iteration
+    self.aux_kl_beta = aux_kl_beta
+
+    self.dist_class = Categorical
 
     #Q- Network
     self.actor = Actor(state_dims, action_space).to(device)
@@ -183,9 +189,9 @@ class PPGAgent(Agent):
 
   def learn(self, iteration: int = 10, replace=True):
     """Update value parameters using given batch of experience tuples."""
-    polcy_loss, val_loss = np.nan, np.nan
+    polcy_loss, val_loss, aux_loss = np.nan, np.nan, np.nan
     if len(self.memory) < iteration:
-      return polcy_loss, val_loss
+      return polcy_loss, val_loss, aux_loss
 
     polcy_loss = []
     val_loss = []
@@ -193,7 +199,7 @@ class PPGAgent(Agent):
         num_samples=iteration, replace=replace
     )
     if not trajectories:
-      return np.nan, np.nan
+      return np.nan, np.nan, np.nan
 
     for trajectory in trajectories:
       polcy_loss_, val_loss_ = self._learn(trajectory)
@@ -201,9 +207,12 @@ class PPGAgent(Agent):
       polcy_loss.append(polcy_loss_.cpu().data.numpy())
       val_loss.append(val_loss_.cpu().data.numpy())
 
-    aux_loss = self.train_auxiliary(iteration=iteration)
+    aux_loss = self.train_auxiliary()
 
-    return np.array(polcy_loss).mean(), np.array(val_loss).mean(), np.array(aux_loss).mean()
+    return (
+        np.array(polcy_loss).mean(), np.array(val_loss).mean(),
+        np.array(aux_loss).mean()
+    )
 
   def _train_policy(self, states, actions, log_prob_old, advs):
     # compute the policy distribution
@@ -249,43 +258,44 @@ class PPGAgent(Agent):
 
     self.critic_optimizer.zero_grad()
     val_loss.backward()
-    nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
+    nn.utils.clip_grad_norm_(self.critic.parameters(), self.grad_clip)
     self.critic_optimizer.step()
     return val_loss
 
-  def train_auxiliary(self, iteration: int = 10):
+  def train_auxiliary(self):
     """Update value parameters using given batch of experience tuples."""
     aux_loss = np.nan
-    if len(self.auxiliary_buffer) < iteration:
+    if len(self.auxiliary_buffer) < self.aux_iteration:
       return aux_loss
 
-    aux_loss = []
-    experiences = self.auxiliary_buffer.dequeue()
+    experience = self.auxiliary_buffer.dequeue()
 
-    if not experiences:
+    if not experience:
       return np.nan
 
-    for experience in experiences:
+    aux_loss = []
+    for _ in range(self.aux_iteration):
       aux_loss_ = self._train_auxiliary(
-          experience.state, experience.v_targets, experience.action,
-          experience.log_prob
+          experience.state, experience.v_targets, experience.actions_dist_old
       )
-
-      aux_loss.append(aux_loss_.cpu().data.numpy())
+      aux_loss.append(aux_loss_.detach().cpu())
 
     return aux_loss
 
-
-  def _train_auxiliary(self, states, v_targets, actions, log_prob_old):
+  def _train_auxiliary(self, states, v_targets, actions_dist_old):
 
     # Update the critic given the targets
-    _, action_dist = self.action(state=states, actor_old=False, mode="train")
+    _, action_dist_new = self.action(
+        state=states, actor_old=False, mode="train"
+    )
 
     value_aux = self.actor.auxiliary_pred(states)
 
     aux_loss = 0.5 * self.aux_loss(value_aux, v_targets.detach())
 
-    aux_loss += (log_prob_old * (log_prob_old - action_dist.log_prob(actions.T).T)).mean()
+    aux_loss += self.aux_kl_beta * kl_divergence(
+        actions_dist_old, action_dist_new
+    ).mean()
 
     self.actor_optimizer.zero_grad()
     aux_loss.backward()
@@ -323,13 +333,13 @@ class PPGAgent(Agent):
     # update value network
     val_loss = self._train_critic(states, v_targets)
 
+    old_pi = self.actor.forward(states).detach()
     # add the pair <st, v_target>
     self.auxiliary_buffer.enqueue(
         Experience(
             state=states,
             v_targets=v_targets,
-            action=actions,
-            log_prob=log_prob_old
+            actions_dist_old=self.dist_class(old_pi)
         )
     )
 
@@ -431,7 +441,7 @@ class PPGAgent(Agent):
       actor.eval()
 
     pi = actor.forward(state)
-    dist = Categorical(pi)
+    dist = self.dist_class(pi)
     action = dist.sample()
     self.dist = dist
     return action.cpu().data.numpy(), dist
