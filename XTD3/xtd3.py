@@ -241,7 +241,8 @@ class XTD3Agent(Agent):
     self.critic_target.load_state_dict(self.critic.state_dict())
 
     # Theta 2 Critic network
-    self.critic_1 = Critic(self.state_dims, self.action_space).to(device)
+    self.critic_1 = Critic(self.state_dims, self.action_space,
+                           seed=2 * seed).to(device)
     self.critic_1_target = Critic(self.state_dims, self.action_space).to(device)
     self.critic_1_target.load_state_dict(self.critic_1.state_dict())
 
@@ -265,7 +266,6 @@ class XTD3Agent(Agent):
         beta=self.gumbel_loss_beta,
         clip=self.gumbel_loss_clip
     )
-    self.policy_loss = nn.MSELoss()
 
   def learn(self, iteration):
     if len(self.memory) > self.batch_size:

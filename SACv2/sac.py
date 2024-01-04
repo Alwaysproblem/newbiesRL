@@ -1,4 +1,4 @@
-"""TD3 implementation with pytorch."""
+"""SAC implementation with pytorch."""
 import numpy as np
 import torch
 from torch import nn
@@ -6,11 +6,11 @@ from torch.nn import functional as F
 from util.buffer import ReplayBuffer
 from util.agent import Agent
 from util.buffer import Experience
-from util.dist import OrnsteinUhlenbeckNoise
+from util.dist import SquashedNormal, DiagonalGaussian
 
 
 class Actor(nn.Module):
-  """ Actor (Policy) Model."""
+  """ Actor (Policy) Network."""
 
   def __init__(
       self,
@@ -40,18 +40,25 @@ class Actor(nn.Module):
     self.fc1_ln = nn.LayerNorm(fc1_unit)
     self.fc2 = nn.Linear(fc1_unit, fc2_unit)
     self.fc2_ln = nn.LayerNorm(fc2_unit)
-    self.fc_policy = nn.Linear(fc2_unit, action_space)
+    self.fc_mu_policy = nn.Linear(fc2_unit, action_space)
+    self.fc_std_policy = nn.Linear(fc2_unit, action_space)
     self.max_action = max_action
 
     nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
     nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
     nn.init.uniform_(
-        self.fc_policy.weight, -init_policy_weight_gain, init_policy_weight_gain
+        self.fc_mu_policy.weight, -init_policy_weight_gain,
+        init_policy_weight_gain
+    )
+    nn.init.uniform_(
+        self.fc_std_policy.weight, -init_policy_weight_gain,
+        init_policy_weight_gain
     )
 
     nn.init.constant_(self.fc1.bias, init_bias)
     nn.init.constant_(self.fc2.bias, init_bias)
-    nn.init.constant_(self.fc_policy.bias, init_bias)
+    nn.init.constant_(self.fc_mu_policy.bias, init_bias)
+    nn.init.constant_(self.fc_std_policy.bias, init_bias)
 
   def forward(self, x):
     """
@@ -59,8 +66,9 @@ class Actor(nn.Module):
         """
     x = F.relu(self.fc1_ln(self.fc1(x)))
     x = F.relu(self.fc2_ln(self.fc2(x)))
-    pi = self.max_action * torch.tanh(self.fc_policy(x))
-    return pi
+    mu = self.fc_mu_policy(x)
+    log_std = self.fc_std_policy(x)
+    return mu, log_std
 
 
 class Critic(nn.Module):
@@ -113,7 +121,7 @@ class Critic(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class TD3Agent(Agent):
+class SACv2Agent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
@@ -123,22 +131,16 @@ class TD3Agent(Agent):
       gamma=0.99,
       lr_actor=0.001,
       lr_critic=0.001,
+      lr_alpha=0.001,
       batch_size=64,
       epsilon=0.01,
       mem_size=None,
       forget_experience=True,
       update_tau=0.5,
-      n_steps=0,
-      gae_lambda=None,
-      beta=0,
+      init_alpha=0.1,
+      learnable_alpha=True,
+      log_std_bounds=None,
       seed=0,
-      mu=0.0,
-      theta=0.15,
-      max_sigma=0.3,
-      min_sigma=0.3,
-      decay_period=100000,
-      value_noise_clip=0.5,
-      value_noise_sigma=0.5
   ):
 
     self.state_dims = state_dims.shape[0]
@@ -148,25 +150,17 @@ class TD3Agent(Agent):
     self.batch_size = batch_size
     self.epsilon = epsilon
     self.seed = np.random.seed(seed)
-    self.n_steps = n_steps
-    self.gae_lambda = gae_lambda
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
-    self.beta = beta
-    self.noise = OrnsteinUhlenbeckNoise(
-        mu=mu,
-        sigma=max_sigma,
-        low=torch.from_numpy(action_space.low).to(device),
-        high=torch.from_numpy(action_space.high).to(device),
-        eps=0,
-        theta=theta,
-        dt=1,
-        sigma_schedule=f"linear({max_sigma}, {min_sigma}, {decay_period})"
-    )
+    self.log_alpha = torch.tensor(np.log(init_alpha)).to(device)
+    self.log_alpha.requires_grad = True
+    # set target entropy to - |A|
+    self.target_entropy = -self.action_space
+    self.lr_alpha = lr_alpha
+    self.learnable_alpha = learnable_alpha
+    self.log_std_bounds = log_std_bounds
 
     self.update_tau = update_tau
-    self.value_noise_clip = value_noise_clip
-    self.value_noise_sigma = value_noise_sigma
 
     # Theta 1 network
     self.actor = Actor(
@@ -174,16 +168,6 @@ class TD3Agent(Agent):
         self.action_space,
         max_action=self.action_space_env.high[0]
     ).to(device)
-    self.actor_target = Actor(
-        self.state_dims,
-        self.action_space,
-        max_action=self.action_space_env.high[0]
-    ).to(device)
-    self.actor_target.load_state_dict(self.actor.state_dict())
-
-    self.actor_optimizer = torch.optim.Adam(
-        self.actor.parameters(), lr=self.lr_actor
-    )
 
     # Theta 1 Critic network
     self.critic = Critic(self.state_dims, self.action_space).to(device)
@@ -193,18 +177,24 @@ class TD3Agent(Agent):
     # Theta 2 Critic network
     self.critic_1 = Critic(self.state_dims, self.action_space,
                            seed=2 * seed).to(device)
-    self.critic_1_target = Critic(self.state_dims, self.action_space).to(device)
-    self.critic_1_target.load_state_dict(self.critic_1.state_dict())
+    self.critic_target_1 = Critic(self.state_dims, self.action_space).to(device)
+    self.critic_target_1.load_state_dict(self.critic_1.state_dict())
 
+    self.actor_optimizer = torch.optim.Adam(
+        self.actor.parameters(), lr=self.lr_actor
+    )
     self.critic_optimizer = torch.optim.Adam([
         *self.critic.parameters(), *self.critic_1.parameters()
     ],
                                              lr=self.lr_critic)
+    self.alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.lr_alpha)
 
     # Replay memory
     self.memory = ReplayBuffer(max_size=mem_size)
-
     self.forget_experience = forget_experience
+
+    self.dist = SquashedNormal(
+    ) if self.log_std_bounds is not None else DiagonalGaussian
 
     self.val_loss = nn.MSELoss()
     self.val_1_loss = nn.MSELoss()
@@ -215,15 +205,33 @@ class TD3Agent(Agent):
         experience = self.memory.sample_from(num_samples=self.batch_size)
         self._learn(experience)
 
-  def action(self, state, mode="train"):
+  def denormlize_action(self, norm_actions):
+    low = self.action_space_env.low[0]
+    high = self.action_space_env.high[0]
+
+    actions = low + (norm_actions + 1.0) * 0.5 * (high - low)
+    actions = torch.clamp(actions, min=low, max=high)
+    return actions
+
+  def action(self, state, mode="eval"):
     if mode == "train":
       self.actor.train()
     else:
       self.actor.eval()
 
-    with torch.no_grad():
-      action = self.actor.forward(state)
-    return action.cpu().data.numpy()
+    mu, log_std = self.actor.forward(state)
+
+    if self.log_std_bounds is not None:
+      # constrain log_std inside [log_std_min, log_std_max]
+      log_std = torch.tanh(log_std)
+      log_std_min, log_std_max = self.log_std_bounds
+      log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std + 1)
+
+    dist = self.dist(mu, log_std.exp())
+    action = dist.sample()
+    unorm_actions = self.denormlize_action(action)
+
+    return unorm_actions[0].cpu().data.numpy(), dist
 
   def take_action(self, state, explore=False):
     """Returns action for given state as per current policy
@@ -232,11 +240,12 @@ class TD3Agent(Agent):
             state (array_like): current state
             epsilon (float): epsilon, for epsilon-greedy action selection
         """
-    state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-    action_values = self.action(state=state, mode="eval").squeeze(0)
     if explore:
-      self.noise(torch.from_numpy(action_values).to(device))
-      action_values = self.noise.sample().cpu().data.numpy()
+      return self.action_space_env.sample()
+    state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+
+    with torch.no_grad():
+      action_values, *_ = self.action(state)
 
     # Clip the output according to the action space of the env
     action_values = np.clip(
@@ -247,6 +256,73 @@ class TD3Agent(Agent):
 
   def remember(self, scenario: Experience):
     self.memory.enqueue(scenario)
+
+  def _train_critic(self, states, actions, rewards, next_states, terminate):
+
+    self.critic.train()
+    self.critic_target.eval()
+
+    self.critic_1.train()
+    self.critic_target_1.eval()
+
+    # log π(aₜ₊₁|sₜ₊₁)
+    _, dist = self.action(next_states, mode="train")
+    next_action = dist.rsample()
+    log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+
+    # Compute the Q value with TD3 trick
+    target_q = self.critic_target.forward(next_states, next_action)
+    target_q_1 = self.critic_target_1.forward(next_states, next_action)
+
+    min_target_q_value = torch.min(target_q, target_q_1)
+
+    # Compute the target Value with
+    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]
+    target_v = min_target_q_value - self.log_alpha.exp().detach() * log_prob
+    target_q = rewards + ((1 - terminate) * self.gamma * target_v).detach()
+
+    # Get current Q estimate
+    current_q = self.critic.forward(states, actions)
+    current_q_1 = self.critic_1.forward(states, actions)
+
+    # Compute critic loss
+    critic_loss = self.val_loss(current_q, target_q
+                                ) + self.val_1_loss(current_q_1, target_q)
+
+    # Optimize the critic
+    self.critic_optimizer.zero_grad()
+    critic_loss.backward()
+    self.critic_optimizer.step()
+
+  def _train_actor(self, states):
+    # log π(aₜ|sₜ)
+    _, dist = self.action(states, mode="train")
+    action = dist.rsample()
+    log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+
+    # Compute the Q value with TD3 trick
+    target_q = self.critic.forward(states, action)
+    target_q_1 = self.critic_1.forward(states, action)
+
+    min_target_q_value = torch.min(target_q, target_q_1)
+
+    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]
+    actor_loss = (
+        self.log_alpha.exp().detach() * log_prob - min_target_q_value
+    ).mean()
+
+    # Optimize the actor
+    self.actor_optimizer.zero_grad()
+    actor_loss.backward()
+    self.actor_optimizer.step()
+
+    if self.learnable_alpha:
+      self.alpha_optimizer.zero_grad()
+      alpha_loss = (
+          self.log_alpha.exp() * (-log_prob - self.target_entropy).detach()
+      ).mean()
+      alpha_loss.backward()
+      self.alpha_optimizer.step()
 
   def _learn(self, experiences):
     # pylint: disable=line-too-long
@@ -269,63 +345,11 @@ class TD3Agent(Agent):
     terminate = torch.from_numpy(np.vstack([e.done for e in experiences])
                                  ).float().to(device)
 
-    self.critic.train()
-    self.critic_target.eval()
-    self.critic_1.train()
-    self.critic_1_target.eval()
-    self.actor_target.eval()
+    self._train_critic(states, actions, rewards, next_states, terminate)
+    self._train_actor(states)
 
-    # noise ~ N(0, sigma)
-    noise = torch.clamp(
-        torch.normal(mean=0.0, std=self.value_noise_sigma, size=actions.size()),
-        -self.value_noise_clip, self.value_noise_clip
-    ).to(device)
-
-    # Compute the target Q value
-    target_q = self.critic_target.forward(
-        next_states,
-        self.actor_target.forward(next_states) + noise
-    )
-    target_q_1 = self.critic_1_target.forward(
-        next_states,
-        self.actor_target.forward(next_states) + noise
-    )
-
-    min_target_q_value = torch.min(
-        torch.cat((target_q, target_q_1), dim=1), dim=1
-    ).values.unsqueeze(dim=1)
-
-    target_q = rewards + ((1 - terminate) * self.gamma *
-                          min_target_q_value).detach()
-
-    # Get current Q estimate
-    current_q = self.critic.forward(states, actions)
-
-    # Get current Q estimate
-    current_q_1 = self.critic_1.forward(states, actions)
-
-    # Compute critic loss
-    critic_loss = self.val_loss(current_q, target_q
-                                ) + self.val_1_loss(current_q_1, target_q)
-
-    # Optimize the critic
-    self.critic_optimizer.zero_grad()
-    critic_loss.backward()
-    self.critic_optimizer.step()
-
-    # Here, `Delayed policy updates` is needed
-    # This implementation will assume that `policy_freq = 1`.
-    # Compute actor loss
-    actor_loss = -self.critic.forward(states, self.actor.forward(states)).mean()
-
-    # Optimize the actor
-    self.actor_optimizer.zero_grad()
-    actor_loss.backward()
-    self.actor_optimizer.step()
-
-    self.update_actor_target_network()
     self.update_critic_target_network()
-    self.update_critic_1_target_network()
+    self.update_critic_target_1_network()
 
   def soft_update(self, local_model, target_model):
     """
@@ -342,11 +366,8 @@ class TD3Agent(Agent):
           (1.0 - self.update_tau) * target_param.data
       )
 
-  def update_actor_target_network(self):
-    self.soft_update(self.actor, self.actor_target)
-
   def update_critic_target_network(self):
     self.soft_update(self.critic, self.critic_target)
 
-  def update_critic_1_target_network(self):
-    self.soft_update(self.critic_1, self.critic_1_target)
+  def update_critic_target_1_network(self):
+    self.soft_update(self.critic_1, self.critic_target_1)
