@@ -10,7 +10,7 @@ from util.wrappers import TrainMonitor
 from util.buffer import Experience
 from collections import deque
 # pylint: disable=invalid-name
-from SAC.sac import SACAgent as SAC_torch
+from SACv2.sac import SACv2Agent as SAC_torch
 # from DQN.dqn_torch import DQNAgent as DQN_torch
 
 Agent = SAC_torch

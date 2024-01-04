@@ -121,7 +121,7 @@ class Critic(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class SACAgent(Agent):
+class SACv2Agent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
@@ -365,9 +365,6 @@ class SACAgent(Agent):
           self.update_tau * local_param.data +
           (1.0 - self.update_tau) * target_param.data
       )
-
-  def update_actor_target_network(self):
-    self.soft_update(self.actor, self.actor_target)
 
   def update_critic_target_network(self):
     self.soft_update(self.critic, self.critic_target)

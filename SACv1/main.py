@@ -1,4 +1,4 @@
-"""main executable file for XSAC"""
+"""main executable file for SAC"""
 import os
 import logging
 from itertools import repeat
@@ -10,10 +10,10 @@ from util.wrappers import TrainMonitor
 from util.buffer import Experience
 from collections import deque
 # pylint: disable=invalid-name
-from XSAC.xsac import XSACAgent as XSAC_torch
+from SACv1.sac import SACv1Agent as SAC_torch
 # from DQN.dqn_torch import DQNAgent as DQN_torch
 
-Agent = XSAC_torch
+Agent = SAC_torch
 logging.basicConfig(level=logging.INFO)
 
 torch.manual_seed(0)
@@ -74,8 +74,6 @@ def main(
   init_alpha = 0.1
   learnable_alpha = True
   log_std_bounds = [-5, 2]
-  gumbel_loss_beta = 2.0
-  gumbel_loss_clip = None
 
   agent = Agent(
       state_dims=env.observation_space,
@@ -92,9 +90,7 @@ def main(
       mem_size=mem_size,
       init_alpha=init_alpha,
       learnable_alpha=learnable_alpha,
-      log_std_bounds=log_std_bounds,
-      gumbel_loss_beta=gumbel_loss_beta,
-      gumbel_loss_clip=gumbel_loss_clip
+      log_std_bounds=log_std_bounds
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
   for i_episode in range(1, n_episodes + 1):

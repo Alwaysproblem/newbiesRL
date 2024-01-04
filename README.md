@@ -84,7 +84,8 @@ For example (DDPG):
 |  AWR  |                   https://openreview.net/attachment?id=H1gdF34FvS                    |   <img src="AWR/AWRAgent_200.gif" width="30%" height="30%"/>   |
 |  AC   |                    https://proceedings.neurips.cc/paper/1999/file                    |   <img src="AC/A2CAgent_600.gif" width="30%" height="30%"/>    |
 |  TD3  |                         https://arxiv.org/pdf/1802.09477.pdf                         |   <img src="TD3/TD3Agent_100.gif" width="30%" height="30%"/>   |
-|  SAC  |                         https://arxiv.org/pdf/1812.05905.pdf                         |   <img src="SAC/SACAgent_100.gif" width="30%" height="30%"/>   |
+| SACv1 |                         https://arxiv.org/pdf/1801.01290.pdf                         | <img src="SACv1/SACv1Agent_100.gif" width="30%" height="30%"/> |
+| SACv2 |                         https://arxiv.org/pdf/1812.05905.pdf                         | <img src="SACv2/SACv2Agent_100.gif" width="30%" height="30%"/> |
 | XAWR  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  <img src="XAWR/XAWRAgent_100.gif" width="30%" height="30%"/>  |
 | XDDPG | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) | <img src="XDDPG/XDDPGAgent_200.gif" width="30%" height="30%"/> |
 | XTD3  | Improved with Gumbel Distribution Regression from [XQL](https://div99.github.io/XQL) |  <img src="XTD3/XTD3Agent_100.gif" width="30%" height="30%"/>  |
