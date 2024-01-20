@@ -13,3 +13,4 @@
 - [x] [TD3](https://arxiv.org/pdf/1802.09477.pdf)
 - [ ] [IMPALA](https://arxiv.org/pdf/1802.01561.pdf)
 - [ ] [ERLA](https://arxiv.org/pdf/2101.03958.pdf)
+- [ ] [MPO](https://arxiv.org/pdf/1806.06920.pdf) and [MPO+](https://arxiv.org/pdf/1812.02256.pdf)
