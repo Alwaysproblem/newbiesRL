@@ -60,6 +60,16 @@ def main(
   num_workers = 32
   beta = 0.01
   iteration = 1000
+  init_eta=1.0
+  lr_eta=0.0001
+  eta_epsilon=0.1
+  action_sample_round=64
+  kl_epsilon=0.01
+  kl_alpha=0.
+  kl_clip_min=0.0
+  kl_clip_max=1.0
+  improved_policy_iteration = 5
+  update_tau=0.005
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
@@ -73,10 +83,20 @@ def main(
       gae_lambda=gae_lambda,
       beta=beta,
       clip_eps=clip_eps,
+      init_eta=init_eta,
+      lr_eta=lr_eta,
+      eta_epsilon=eta_epsilon,
+      action_sample_round=action_sample_round,
+      kl_epsilon=kl_epsilon,
+      kl_alpha=kl_alpha,
+      kl_clip_min=kl_clip_min,
+      kl_clip_max=kl_clip_max,
+      improved_policy_iteration=improved_policy_iteration,
+      update_tau=update_tau,
   )
   dump_gif_dir = f"images/{agent.__class__.__name__}/{agent.__class__.__name__}_{{}}.gif"
 
-  policy_loss, val_loss = np.nan, np.nan
+  policy_loss, val_loss, eta_loss = np.nan, np.nan, np.nan
 
   for i_episode in range(1, n_episodes + 1):
     for _ in range(num_workers):
@@ -105,12 +125,13 @@ def main(
             f"\rEpisode {i_episode}\t"
             f"Average Score {np.mean(scores_window):.2f}\t"
             f"policy loss {policy_loss:.9f}\t"
-            f"value loss {val_loss:.2f}",
+            f"value loss {val_loss:.2f}\t",
+            f"eta loss {eta_loss:.2f}",
             end="\r"
         )
 
       agent.remember(traj)
-    policy_loss, val_loss = agent.learn(iteration=iteration)
+    policy_loss, val_loss, eta_loss = agent.learn(iteration=iteration)
 
     if i_episode and i_episode % 100 == 0:
       print(" " * os.get_terminal_size().columns, end="\r")
