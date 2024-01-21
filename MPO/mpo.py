@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.distributions import kl_divergence
 from torch.distributions import Categorical
 from torch.nn import functional as F
 
@@ -279,9 +280,16 @@ class MPOAgent(Agent):
     )  # shape [BxN, 1]
     target_q = target_q.reshape(-1, self.action_sample_round).detach(
     )  # shape [B, N]
+
+    # This is for numberic stability.
+    # The original code should be like:
+    # eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
+    #     torch.exp(target_q / self.eta).mean(dim=-1)
+    # ).mean()
+    max_q = target_q.max(dim=-1, keepdim=True).values
     eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
-        torch.exp(target_q / self.eta).mean(dim=-1)
-    ).mean()
+        torch.exp((target_q - max_q) / self.eta).mean(dim=-1)
+    ).mean() + torch.mean(max_q)
 
     self.eta_optimizer.zero_grad()
     eta_loss.backward()
@@ -301,7 +309,17 @@ class MPOAgent(Agent):
                                     ).T.reshape(-1, self.action_sample_round)
     policy_loss = torch.mean(log_prob * action_weights.detach())
 
-    policy_loss = -policy_loss
+    with torch.no_grad():
+      _, action_dist_old = self.action(tiled_states, target_policy=True)
+
+    kl = kl_divergence(action_dist, action_dist_old).mean()
+    kl = torch.clamp(kl, min=self.kl_clip_min, max=self.kl_clip_max)
+
+    self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
+    self.kl_alpha = torch.clamp(self.kl_alpha, min=0, max=self.kl_alpha_max)
+
+    policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))
+
     self.actor_optimizer.zero_grad()
     policy_loss.backward()
     nn.utils.clip_grad_norm_(self.actor.parameters(), self.grad_clip)
@@ -315,10 +333,10 @@ class MPOAgent(Agent):
         states, actions
     )
     # step 3
-    # for _ in range(self.improved_policy_iteration):
-    policy_loss = self.fit_an_improved_policy(
-        action_weights, sample_actions, tiled_states
-    )
+    for _ in range(self.improved_policy_iteration):
+      policy_loss = self.fit_an_improved_policy(
+          action_weights, sample_actions, tiled_states
+      )
     return policy_loss, eta_loss
 
   def _learn(self, trajectory: Trajectory):

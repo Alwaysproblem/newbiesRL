@@ -4,3 +4,4 @@ logs
 .mypy_cache
 .vscode
 images
+tmp.ipynb
