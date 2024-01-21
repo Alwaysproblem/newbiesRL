@@ -65,7 +65,7 @@ def main(
   eta_epsilon=0.1
   action_sample_round=64
   kl_epsilon=0.01
-  kl_alpha=10.
+  kl_alpha=0.
   kl_clip_min=0.0
   kl_clip_max=1000.0
   improved_policy_iteration = 5

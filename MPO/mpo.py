@@ -76,9 +76,10 @@ class Critic(nn.Module):
       state_dim,
       action_space=1,
       seed=0,
-      fc1_unit=64,
-      fc2_unit=64,
+      fc1_unit=256,
+      fc2_unit=256,
       init_weight_gain=np.sqrt(2),
+      init_value_weight_gain=1,
       init_bias=0
   ):
     """
@@ -102,9 +103,11 @@ class Critic(nn.Module):
 
     nn.init.orthogonal_(self.fc1.weight, gain=init_weight_gain)
     nn.init.orthogonal_(self.fc2.weight, gain=init_weight_gain)
+    nn.init.orthogonal_(self.fc3.weight, gain=init_value_weight_gain)
 
     nn.init.constant_(self.fc1.bias, init_bias)
     nn.init.constant_(self.fc2.bias, init_bias)
+    nn.init.constant_(self.fc3.bias, init_bias)
 
   def forward(self, x, y):
     """
@@ -197,13 +200,6 @@ class MPOAgent(Agent):
 
     self.eta = torch.tensor(init_eta).to(device)
     self.eta.requires_grad = True
-
-    self.actor_optimizer = torch.optim.Adam(
-        self.actor.parameters(), lr=self.lr_actor
-    )
-    self.critic_optimizer = torch.optim.Adam(
-        self.critic.parameters(), lr=self.lr_critic
-    )
     self.eta_optimizer = torch.optim.Adam([self.eta], lr=self.lr_eta)
 
     # Replay memory
@@ -296,7 +292,7 @@ class MPOAgent(Agent):
     nn.utils.clip_grad_norm_(self.eta, self.grad_clip)
     self.eta_optimizer.step()
 
-    action_weights = torch.exp(target_q / self.eta)  # shape [B, N]
+    action_weights = target_q / self.eta  # shape [B, N]
     action_weights = torch.softmax(action_weights, dim=-1)
 
     return action_weights, sample_actions, tiled_states, eta_loss
@@ -312,11 +308,12 @@ class MPOAgent(Agent):
     with torch.no_grad():
       _, action_dist_old = self.action(tiled_states, target_policy=True)
 
-    kl = kl_divergence(action_dist, action_dist_old).mean()
+    kl = kl_divergence(action_dist_old, action_dist).mean()
     kl = torch.clamp(kl, min=self.kl_clip_min, max=self.kl_clip_max)
 
-    self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
-    self.kl_alpha = torch.clamp(self.kl_alpha, min=0, max=self.kl_alpha_max)
+    if self.kl_alpha_scaler > 0:
+      self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
+      self.kl_alpha = torch.clamp(self.kl_alpha, min=0, max=self.kl_alpha_max)
 
     policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))
 
