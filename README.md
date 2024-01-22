@@ -139,6 +139,11 @@ For example (DDPG):
         <br>
         <p><a href="https://arxiv.org/pdf/1812.05905.pdf">SACv2</a></p>
       </td>
+      <td>
+         <img width="100%" height="100%" src="MPO/MPOAgent_900.gif" alt="pic">
+        <br>
+        <p><a href="https://arxiv.org/pdf/1812.02256.pdf">MPO</a></p>
+      </td>
     </tr>
   </tbody>
 </table>
