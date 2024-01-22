@@ -134,11 +134,6 @@ class MPOAgent(Agent):
       epsilon=0.01,
       mem_size=None,
       forget_experience=True,
-      n_steps=0,
-      gae_lambda=None,
-      clip_eps=0.2,
-      beta=0,
-      value_clip=False,
       grad_clip=0.5,
       init_eta=1.0,
       lr_eta=0.001,
@@ -160,21 +155,16 @@ class MPOAgent(Agent):
     self.batch_size = batch_size
     self.epsilon = epsilon
     self.seed = np.random.seed(seed)
-    self.n_steps = n_steps
-    self.gae_lambda = gae_lambda
     self.lr_actor = lr_actor
     self.lr_critic = lr_critic
     self.lr_eta = lr_eta
-    self.beta = beta
-    self.clip_eps = clip_eps
-    self.value_clip = value_clip
     self.grad_clip = grad_clip
     self.dist_class = Categorical
     self.eta_epsilon = eta_epsilon
     self.action_sample_round = action_sample_round
     self.kl_epsilon = kl_epsilon
     self.kl_alpha_scaler = kl_alpha
-    self.kl_alpha = torch.tensor(kl_alpha, requires_grad=False).to(device)
+    self.kl_alpha = torch.tensor(0., requires_grad=False).to(device)
     self.kl_clip_min = kl_clip_min
     self.kl_clip_max = kl_clip_max
     self.kl_alpha_max = kl_alpha_max
@@ -204,11 +194,8 @@ class MPOAgent(Agent):
 
     # Replay memory
     self.memory = ReplayBuffer(max_size=mem_size)
-
     self.forget_experience = forget_experience
-
     self.val_loss = nn.MSELoss()
-    self.policy_loss = nn.MSELoss()
 
   def learn(self, iteration: int = 10, replace=True):
     """Update value parameters using given batch of experience tuples."""
@@ -242,11 +229,12 @@ class MPOAgent(Agent):
     self.critic.train()
     self.critic_target.eval()
 
-    # sampled action from π(aₜ₊₁|sₜ₊₁)
+    # sampled actions from π(aₜ₊₁|sₜ₊₁)
     _, dist = self.action(next_states, target_policy=True)
     sampled_actions = dist.sample().reshape(actions.shape)
 
-    # Compute the target Q value
+    # Compute the target Q value with
+    # rewards + gamma * Q(sₜ₊₁, {sampled actions})
     target_q = self.critic_target.forward(next_states, sampled_actions)
     target_q = rewards + ((1 - terminates) * self.gamma * target_q).detach()
 
@@ -282,6 +270,7 @@ class MPOAgent(Agent):
     # eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
     #     torch.exp(target_q / self.eta).mean(dim=-1)
     # ).mean()
+
     max_q = target_q.max(dim=-1, keepdim=True).values
     eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
         torch.exp((target_q - max_q) / self.eta).mean(dim=-1)
@@ -292,13 +281,12 @@ class MPOAgent(Agent):
     nn.utils.clip_grad_norm_(self.eta, self.grad_clip)
     self.eta_optimizer.step()
 
-    action_weights = target_q / self.eta  # shape [B, N]
-    action_weights = torch.softmax(action_weights, dim=-1)
+    action_weights = torch.softmax(target_q / self.eta, dim=-1)  # shape [B, N]
 
     return action_weights, sample_actions, tiled_states, eta_loss
 
   def fit_an_improved_policy(
-      self, action_weights, sample_actions, tiled_states, pi_old=None
+      self, action_weights, sample_actions, tiled_states
   ):
     _, action_dist = self.action(tiled_states, mode="train")
     log_prob = action_dist.log_prob(sample_actions.detach().T
@@ -313,7 +301,9 @@ class MPOAgent(Agent):
 
     if self.kl_alpha_scaler > 0:
       self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
-      self.kl_alpha = torch.clamp(self.kl_alpha, min=0, max=self.kl_alpha_max)
+      self.kl_alpha = torch.clamp(
+          self.kl_alpha, min=1e-8, max=self.kl_alpha_max
+      )
 
     policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))
 
@@ -326,9 +316,8 @@ class MPOAgent(Agent):
 
   def policy_improvement(self, states, actions):
     # step 2
-    action_weights, sample_actions, tiled_states, eta_loss = self.find_action_weights(
-        states, actions
-    )
+    (action_weights, sample_actions, tiled_states,
+     eta_loss) = self.find_action_weights(states, actions)
     # step 3
     for _ in range(self.improved_policy_iteration):
       policy_loss = self.fit_an_improved_policy(
