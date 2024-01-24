@@ -265,6 +265,7 @@ class MPOAgent(Agent):
     target_q = target_q.reshape(-1, self.action_sample_round).detach(
     )  # shape [B, N]
 
+    # η = argmin[ η * ε + η * Σₖ ( 1/K * log(Σₙ( 1/N * exp(Q(sₙ, aₖ)) / η)) ) ]
     # This is for numberic stability.
     # The original code should be like:
     # eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
@@ -281,6 +282,7 @@ class MPOAgent(Agent):
     nn.utils.clip_grad_norm_(self.eta, self.grad_clip)
     self.eta_optimizer.step()
 
+    # qᵢⱼ = q(aᵢ,sⱼ) = exp(Q(sⱼ,aᵢ)/η) / Z(j) where Z(j)=Σᵢ(exp Q(sⱼ,aᵢ)/η)
     action_weights = torch.softmax(target_q / self.eta, dim=-1)  # shape [B, N]
 
     return action_weights, sample_actions, tiled_states, eta_loss
@@ -291,20 +293,32 @@ class MPOAgent(Agent):
     _, action_dist = self.action(tiled_states, mode="train")
     log_prob = action_dist.log_prob(sample_actions.detach().T
                                     ).T.reshape(-1, self.action_sample_round)
+
+    # π(k+1) = argmax Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ))
     policy_loss = torch.mean(log_prob * action_weights.detach())
 
     with torch.no_grad():
       _, action_dist_old = self.action(tiled_states, target_policy=True)
 
+    # Σₖ 1/K * KL(πₖ(a|sₖ)||πθ(a|sₖ)) where πₖ is the old target policy
     kl = kl_divergence(action_dist_old, action_dist).mean()
     kl = torch.clamp(kl, min=self.kl_clip_min, max=self.kl_clip_max)
 
     if self.kl_alpha_scaler > 0:
+      # pylint: disable=line-too-long
+      # Update lagrange multipliers by gradient descent
+      # this equation is derived from last eq of [2] p.5,
+      # just differentiate with respect to α
+      # and update α so that the equation is to be minimized.
+      # inspired by https://github.com/daisatojp/mpo/blob/13da541861f901436c993d0e9b0d369bf7f771d1/mpo/mpo.py#L394
+      # pylint: enable=line-too-long
       self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
       self.kl_alpha = torch.clamp(
           self.kl_alpha, min=1e-8, max=self.kl_alpha_max
       )
-
+    # pylint: disable=line-too-long
+    # max_θ min_α L(θ,η) = Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ)) + α * (ε - Σₖ 1/K * KL(πₖ(a|sₖ)||πθ(a|sₖ)))
+    # pylint: enable=line-too-long
     policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))
 
     self.actor_optimizer.zero_grad()
