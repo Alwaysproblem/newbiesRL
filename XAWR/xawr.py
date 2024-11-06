@@ -9,50 +9,7 @@ from torch.nn import functional as F
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory
 from util.algo import standardize, scale_down_values, scale_up_values
-
-
-def gumbel_loss(pred, label, beta, clip):
-  """
-    Gumbel loss function
-
-    Describe in Appendix D.3 of
-
-    https://arxiv.org/pdf/2301.02328.pdf
-
-    Token from
-    https://github.com/Div99/XQL/blob/dff09afb893fe782be259c2420903f8dfb50ef2c/online/research/algs/gumbel_sac.py#L10)
-  """
-  assert pred.shape == label.shape, "Shapes were incorrect"
-  z = (label - pred) / beta
-  if clip is not None:
-    z = torch.clamp(z, -clip, clip)
-  loss = torch.exp(z) - z - 1
-  return loss.mean()
-
-
-def gumbel_rescale_loss(pred, label, beta, clip):
-  """
-    Gumbel rescale loss function
-
-    Describe in Appendix D.3 (NUMERIC STABILITY) of
-
-    https://arxiv.org/pdf/2301.02328.pdf
-
-    Token from
-    https://github.com/Div99/XQL/blob/dff09afb893fe782be259c2420903f8dfb50ef2c/online/research/algs/gumbel_sac.py#L18)
-  """
-  assert pred.shape == label.shape, "Shapes were incorrect"
-  z = (label - pred) / beta
-  if clip is not None:
-    z = torch.clamp(z, -clip, clip)
-  max_z = torch.max(z)
-  max_z = torch.where(
-      max_z < -1.0, torch.tensor(-1.0, dtype=torch.float, device=max_z.device),
-      max_z
-  )
-  max_z = max_z.detach()  # Detach the gradients
-  loss = torch.exp(z - max_z) - z * torch.exp(-max_z) - torch.exp(-max_z)
-  return loss.mean()
+from util.algo import gumbel_rescale_loss, gumbel_loss  # pylint: disable=unused-import
 
 
 class Actor(nn.Module):
