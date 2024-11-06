@@ -7,6 +7,7 @@ from torch.nn import functional as F
 
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory, Experience
+from util.gae import calc_gaes
 
 
 def standardize(v):
@@ -415,20 +416,11 @@ class PPGAgent(Agent):
       next_v_pred = self.critic.forward(next_states[-1])
     v_preds = self.critic.forward(states).detach()
     v_preds_all = torch.concat((v_preds, next_v_pred.unsqueeze(0)), dim=0)
-    advs = self.calc_gaes(rewards, terminates, v_preds_all)
+    advs = calc_gaes(
+        rewards, terminates, v_preds_all, self.gamma, self.gae_lambda
+    )
     v_target = advs + v_preds
     return standardize(advs), v_target
-
-  def calc_gaes(self, rewards, dones, v_preds):
-    T = len(rewards)  # pylint: disable=invalid-name
-    gaes = torch.zeros_like(rewards, device=device)
-    future_gae = torch.tensor(0.0, dtype=rewards.dtype, device=device)
-    not_dones = 1 - dones  # to reset at episode boundary by multiplying 0
-    deltas = rewards + self.gamma * v_preds[1:] * not_dones - v_preds[:-1]
-    coef = self.gamma * self.gae_lambda
-    for t in reversed(range(T)):
-      gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
-    return gaes
 
   def action(self, state, mode="eval"):
     if mode == "train":
