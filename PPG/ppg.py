@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory, Experience
-from util.gae import calc_gaes
+from util.algo import calc_gaes, calc_nstep_return
 
 
 def standardize(v):
@@ -368,33 +368,16 @@ class PPGAgent(Agent):
     with torch.no_grad():
       next_v_pred = self.critic.forward(next_states)
     v_preds = self.critic.forward(states).detach()
-    n_steps_rets = self.calc_nstep_return(
-        rewards=rewards, dones=terminates, next_v_pred=next_v_pred
+    n_steps_rets = calc_nstep_return(
+        rewards=rewards,
+        dones=terminates,
+        next_v_pred=next_v_pred,
+        gamma=self.gamma,
+        n_steps=self.n_steps
     )
     advs = n_steps_rets - v_preds
     v_targets = n_steps_rets
     return standardize(advs), v_targets
-
-  def calc_nstep_return(self, rewards, dones, next_v_pred):
-    T = len(rewards)  #pylint: disable=invalid-name
-    rets = torch.zeros_like(rewards).to(device)
-    _ = 1 - dones
-
-    for i in range(T):
-      rets[i] = torch.unsqueeze(
-          self.gamma ** torch.arange(len(rewards[i:min(self.n_steps + i, T)])
-                                     ).to(device),
-          dim=0
-      ) @ rewards[i:min(self.n_steps + i, T)]
-
-    if T > self.n_steps:
-      value_n_steps = self.gamma ** self.n_steps * next_v_pred[self.n_steps:]
-      rets = torch.cat([
-          value_n_steps,
-          torch.zeros(size=(self.n_steps, 1)).to(device)
-      ]) + rets
-
-    return rets
 
   def calc_gae_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the GAE (Generalized Advantage Estimation) and V_target.

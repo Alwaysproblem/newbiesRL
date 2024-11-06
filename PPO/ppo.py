@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory
-from util.gae import calc_gaes
+from util.algo import calc_gaes, calc_nstep_return
 
 
 def standardize(v):
@@ -297,8 +297,12 @@ class PPOAgent(Agent):
     with torch.no_grad():
       next_v_pred = self.critic.forward(next_states)
     v_preds = self.critic.forward(states).detach()
-    n_steps_rets = self.calc_nstep_return(
-        rewards=rewards, dones=terminates, next_v_pred=next_v_pred
+    n_steps_rets = calc_nstep_return(
+        rewards=rewards,
+        dones=terminates,
+        next_v_pred=next_v_pred,
+        gamma=self.gamma,
+        n_steps=self.n_steps
     )
     advs = n_steps_rets - v_preds
     v_targets = n_steps_rets
