@@ -46,7 +46,7 @@ def main(
   scores_window = deque(maxlen=100)  # last 100 scores
   eps = eps_start
   # env = gym.make("CartPole-v1", render_mode="rgb_array")
-  env = gym.make("LunarLander-v2", render_mode="rgb_array")
+  env = gym.make("LunarLander-v3", render_mode="rgb_array")
 
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
