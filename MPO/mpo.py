@@ -9,14 +9,6 @@ from torch.nn import functional as F
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory
 
-
-def standardize(v):
-  """Method to standardize a rank-1 np array."""
-  assert len(v) > 1, "Cannot standardize vector of size 1"
-  v_std = (v - v.mean()) / (v.std() + 1e-08)
-  return v_std
-
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 

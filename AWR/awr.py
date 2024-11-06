@@ -8,23 +8,7 @@ from torch.nn import functional as F
 
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory
-
-NORMEPS = 1e-8
-
-
-def standardize(v):
-  """Method to standardize a rank-1 np array."""
-  assert len(v) > 1, "Cannot standardize vector of size 1"
-  v_std = (v - v.mean()) / (v.std() + NORMEPS)
-  return v_std
-
-
-def scale_up_values(v, mean=0, std=1, norm_factor=1):
-  return v / norm_factor * std + mean
-
-
-def scale_down_values(v, mean=0, std=1, norm_factor=1):
-  return norm_factor * (v - mean) / (std + NORMEPS)
+from util.algo import standardize, scale_down_values, scale_up_values
 
 
 class Actor(nn.Module):

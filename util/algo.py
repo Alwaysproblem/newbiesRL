@@ -2,6 +2,21 @@
 import torch
 
 
+def standardize(v, normeps=1e-8):
+  """Method to standardize a rank-1 np array."""
+  assert len(v) > 1, "Cannot standardize vector of size 1"
+  v_std = (v - v.mean()) / (v.std() + normeps)
+  return v_std
+
+
+def scale_up_values(v, mean=0, std=1, norm_factor=1):
+  return v / norm_factor * std + mean
+
+
+def scale_down_values(v, mean=0, std=1, norm_factor=1, normeps=1e-8):
+  return norm_factor * (v - mean) / (std + normeps)
+
+
 def calc_nstep_return(
     rewards: torch.Tensor,
     dones: torch.Tensor,
