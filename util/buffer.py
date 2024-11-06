@@ -68,10 +68,10 @@ class Trajectory:
     return iter(self.q)
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.q)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.q)})"
 
 
 class ReplayBuffer():
@@ -143,10 +143,10 @@ class ReplayBuffer():
     self.q = deque([sample for sample in self.q if sample is not None])
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.q)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.q)})"
 
   def __contain__(self, e):
     return e in self.q
@@ -226,10 +226,10 @@ class SumTree(object):
     return self.size
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.data)})"
+    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.data)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.data)})"
+    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.data)})"
 
   def __contain__(self, contents):
     return contents in self.data
@@ -306,7 +306,7 @@ class ProportionalPrioritizedReplayBuffer():
     return self._priority_update(self.sample_indices, error)
 
   def _priority_update(self, indices, priorities):
-    """ The methods update samples's priority.
+    """ The methods update samples"s priority.
 
       Parameters
       ----------
@@ -331,10 +331,10 @@ class ProportionalPrioritizedReplayBuffer():
     self._priority_update(range(self.tree.filled_size()), priorities)
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.tree)})"
+    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.tree)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.tree)})"
+    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.tree)})"
 
   def __contain__(self, e):
     return e in self.tree

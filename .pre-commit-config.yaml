@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  rev: v5.0.0
   hooks:
     - id: check-yaml
     - id: end-of-file-fixer
@@ -8,7 +8,7 @@ repos:
     - id: end-of-file-fixer
 
 - repo: https://github.com/pycqa/pylint
-  rev: v2.16.2
+  rev: v3.3.1
   hooks:
     - id: pylint
       args:
@@ -16,23 +16,11 @@ repos:
       exclude: tests(/\w*)*/
 
 - repo: https://github.com/google/yapf
-  rev: v0.40.1
+  rev: v0.40.2
   hooks:
   - id: yapf
 
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.0.0
+  rev: v1.13.0
   hooks:
     - id: mypy
-
-- repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: 'v15.0.7'
-  hooks:
-  - id: clang-format
-    types_or: [c++, c]
-
-- repo: https://github.com/mwouts/jupytext
-  rev: v1.14.4
-  hooks:
-  - id: jupytext
-    args: [--sync]
