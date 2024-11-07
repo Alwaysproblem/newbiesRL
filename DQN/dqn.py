@@ -81,6 +81,8 @@ class DQNAgent(Agent):
     self.qnetwork_target = Q(state_dim=state_dims,
                              action_space=action_space).to(device)
     self.optimizer = torch.optim.Adam(self.qnetwork_local.parameters(), lr=lr)
+    # self.optimizer = torch.optim.AdamW(
+    #     self.qnetwork_local.parameters(), lr=lr, amsgrad=True)
 
     # Replay memory
     self.memory = ProportionalPrioritizedReplayBuffer(max_size=mem_size)
@@ -164,7 +166,7 @@ class DQNAgent(Agent):
           self.qnetwork_target.forward(next_states).detach(),
           dim=1,
           keepdim=True
-      )[0]
+      ).values
 
     self.memory.update(torch.abs(predicted_targets - labels).squeeze().tolist())
 
@@ -179,6 +181,7 @@ class DQNAgent(Agent):
     # loss = self.loss(predicted_targets, labels)
     self.optimizer.zero_grad()
     loss.backward()
+    # torch.nn.utils.clip_grad_value_(self.qnetwork_local.parameters(), 100)
     self.optimizer.step()
 
   def update_targe_q(self):
