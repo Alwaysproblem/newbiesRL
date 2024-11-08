@@ -11,7 +11,9 @@ from util.buffer import ProportionalPrioritizedReplayBuffer
 class Q(nn.Module):
   """ Actor (Policy) Model."""
 
-  def __init__(self, state_dim, action_space, seed=0, fc1_unit=64, fc2_unit=64):
+  def __init__(
+      self, state_dim, action_space, seed=0, fc1_unit=128, fc2_unit=128
+  ):
     """
         Initialize parameters and build model.
         Params
@@ -53,6 +55,7 @@ class DDQNAgent(Agent):
       epsilon=0.01,
       mem_size=None,
       forget_experience=True,
+      grad_clip=300,
       sample_ratio=None,
       seed=0
   ):
@@ -64,6 +67,7 @@ class DDQNAgent(Agent):
     self.epsilon = epsilon
     self.seed = np.random.seed(seed)
     self.sample_ratio = sample_ratio
+    self.grad_clip = grad_clip
 
     #Q- Network
     self.qnetwork_local = Q(state_dim=state_dims,
@@ -74,6 +78,7 @@ class DDQNAgent(Agent):
 
     # Replay memory
     self.memory = ProportionalPrioritizedReplayBuffer(max_size=mem_size)
+    # self.memory = ReplayBuffer(max_size=mem_size)
 
     self.forget_experience = forget_experience
     self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())
@@ -162,9 +167,10 @@ class DDQNAgent(Agent):
 
     self.memory.update(torch.abs(predicted_targets - labels).squeeze().tolist())
 
+    # sample_weight_ratio = 1.0
     sample_weight_ratio = torch.Tensor(
-        self.memory.sample_weights
-    ).unsqueeze(1).to(device) * (labels - predicted_targets).detach()
+        self.memory.sample_weights,
+    ).unsqueeze(1).to(device).detach() * (labels - predicted_targets).detach()
 
     # Sampled loss function
     loss = self.loss(
@@ -173,6 +179,9 @@ class DDQNAgent(Agent):
     # loss = self.loss(predicted_targets, labels)
     self.optimizer.zero_grad()
     loss.backward()
+    torch.nn.utils.clip_grad_value_(
+        self.qnetwork_local.parameters(), self.grad_clip
+    )
     self.optimizer.step()
 
   def update_targe_q(self):

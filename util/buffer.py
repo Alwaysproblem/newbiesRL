@@ -2,9 +2,9 @@
 from collections import deque
 from copy import deepcopy
 import warnings
-import math
 import random
 import numpy as np
+from util.tree import SumTree
 
 
 class Experience:
@@ -75,7 +75,7 @@ class Trajectory:
 
 
 class ReplayBuffer():
-  """Replay Buffer for DQN training"""
+  """Replay Buffer for off-policy training"""
 
   def __init__(self, max_size=None) -> None:
     self.max_size = max_size
@@ -134,6 +134,9 @@ class ReplayBuffer():
   def isempty(self):
     return len(self) == 0
 
+  def update(self, error):
+    pass
+
   def isfull(self):
     if self.max_size:
       return len(self) >= self.max_size
@@ -157,184 +160,108 @@ class ReplayBuffer():
   def __iter__(self):
     return iter(self.q)
 
-# pylint: disable=line-too-long
-# The Code is taken from `https://github.com/takoika/PrioritizedExperienceReplay/blob/master/sum_tree.py`
-# pylint: enable=line-too-long
-
-
-class SumTree(object):
-  """SumTree for Prioritized Experience Replay"""
-
-  def __init__(self, max_size=10000000):
-    self.max_size = max_size
-    self.tree_level = math.ceil(math.log(max_size + 1, 2)) + 1
-    self.tree_size = 2 ** self.tree_level - 1
-    self.tree = [0 for _ in range(self.tree_size)]
-    self.data = [None for _ in range(self.max_size)]
-    self.size = 0
-    self.cursor = 0
-
-  def add(self, contents, value):
-    index = self.cursor
-    self.cursor = (self.cursor + 1) % self.max_size
-    self.size = min(self.size + 1, self.max_size)
-
-    self.data[index] = contents
-    self.val_update(index, value)
-
-  def get_val(self, index):
-    tree_index = 2 ** (self.tree_level - 1) - 1 + index
-    return self.tree[tree_index]
-
-  def val_update(self, index, value):
-    tree_index = 2 ** (self.tree_level - 1) - 1 + index
-    diff = value - self.tree[tree_index]
-    self.reconstruct(tree_index, diff)
-
-  def reconstruct(self, tindex, diff):
-    self.tree[tindex] += diff
-    if not tindex == 0:
-      tindex = int((tindex - 1) / 2)
-      self.reconstruct(tindex, diff)
-
-  def find(self, value, norm=True):
-    if norm:
-      value *= self.tree[0]
-    return self._find(value, 0)
-
-  def _find(self, value, index):
-    if 2 ** (self.tree_level - 1) - 1 <= index:
-      return self.data[
-          index -
-          (2 ** (self.tree_level - 1) -
-           1)], self.tree[index], index - (2 ** (self.tree_level - 1) - 1)
-
-    left = self.tree[2 * index + 1]
-
-    if value <= left:
-      return self._find(value, 2 * index + 1)
-    else:
-      return self._find(value - left, 2 * (index + 1))
-
-  def print_tree(self):
-    for k in range(1, self.tree_level + 1):
-      for j in range(2 ** (k - 1) - 1, 2 ** k - 1):
-        print(self.tree[j], end=" ")
-      print()
-
-  def filled_size(self):
-    return self.size
-
-  def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.data)})"
-
-  def __str__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.data)})"
-
-  def __contain__(self, contents):
-    return contents in self.data
-
-  def __getitem__(self, index):
-    return self.data[index]
-
-  def __iter__(self):
-    return iter(self.data)
-
 
 # pylint: disable=line-too-long
-# The Code is modified from `https://github.com/takoika/PrioritizedExperienceReplay/blob/master/proportional.py`
-# pylint: enable=line-too-long
+# # The Code is taken from https://github.com/Howuhh/prioritized_experience_replay/blob/main/memory/buffer.py
+class ProportionalPrioritizedReplayBuffer:
+  """Proportional Prioritized ReplayBuffer for off-policy training"""
 
+  def __init__(self, max_size=None, eps=1e-2, alpha=0.1, beta=0.1):
+    self.size = max_size if max_size else 1000000
+    self.tree = SumTree(size=self.size)
 
-class ProportionalPrioritizedReplayBuffer():
-  """Proportional Prioritized Replay Buffer for RL training"""
+    # PER params
+    self.eps = eps  # minimal priority, prevents zero probabilities
+    self.alpha = alpha  # determines how much prioritization is used, α = 0 corresponding to the uniform case
+    self.beta = beta  # determines the amount of importance-sampling correction, b = 1 fully compensate for the non-uniform probabilities
+    self.max_priority = eps  # priority for new samples, init as eps
 
-  def __init__(self, max_size=None, alpha=0.6, beta=0.4, epsilon=0.01) -> None:
-    self.alpha = alpha
-    self.beta = beta
-    self.epsilon = epsilon
-    self.max_size = 1000000 if max_size is None else max_size
-    self.tree = SumTree(self.max_size)
-    self.sample_weights: list = []
-    self.sample_indices: list = []
+    self.count = 0
+    self.real_size = 0
+    self.sample_weights = []
+    self.sample_indices = []
 
   def enqueue(self, sample):
-    if not self.tree.filled_size():
-      return self._enqueue(sample, 1.0)
-    priority = max(self.tree.tree[0:self.tree.size])
-    return self._enqueue(sample, priority)
 
-  def _enqueue(self, sample, priority):
-    self.tree.add(sample, priority ** self.alpha)
+    # store transition index with maximum priority in sum tree
+    self.tree.add(self.max_priority, sample)
+
+    # update counters
+    self.count = (self.count + 1) % self.size
+    self.real_size = min(self.size, self.real_size + 1)
 
   def sample_from(self, sample_ratio=None, num_samples=1, **kwargs):
-    """Sample a batch of experiences from the replay buffer"""
     _ = kwargs
-    if not self.tree.filled_size():
-      raise ValueError("There is not enough samples in the buffer.")
-
     if sample_ratio:
-      num_samples = max(int(self.tree.filled_size() * sample_ratio), 1)
+      num_samples = max(int(self.real_size * sample_ratio), 1)
 
-    if self.tree.filled_size() < num_samples:
-      return [], [], []
+    if self.real_size <= num_samples:
+      return []
 
-    out = []
-    indices = []
-    weights = []
-    priorities = []
-    for _ in range(num_samples):
-      r = random.random()
-      data, priority, index = self.tree.find(r)
-      priorities.append(priority)
-      weights.append((1. / self.max_size /
-                      priority) ** self.beta if priority > 1e-16 else 0)
+    samples, indices = [], []
+
+    # priorities = torch.empty(num_samples, 1, dtype=torch.float)
+    priorities = np.zeros(num_samples, dtype=np.float32)
+
+    # To sample a minibatch of size k, the range [0, p_total] is divided equally into k ranges.
+    # Next, a value is uniformly sampled from each range. Finally the transitions that correspond
+    # to each of these sampled values are retrieved from the tree. (Appendix B.2.1, Proportional prioritization)
+    segment = self.tree.total / num_samples
+    for i in range(num_samples):
+      a, b = segment * i, segment * (i + 1)
+
+      cumsum = random.uniform(a, b)
+      # sample_idx is a sample index in buffer, needed further to sample actual transitions
+      # index is a index of a sample in the tree, needed further to update priorities
+      index, priority, sample_idx = self.tree.get(cumsum)
+
+      priorities[i] = priority
       indices.append(index)
-      out.append(data)
-      self._priority_update([index], [0])  # To avoid duplicating
+      samples.append(sample_idx)
 
-    self._priority_update(indices, priorities)  # Revert priorities
+    # Concretely, we define the probability of sampling transition i as P(i) = p_i^α / \sum_{k} p_k^α
+    # where p_i > 0 is the priority of transition i. (Section 3.3)
+    probs = priorities / self.tree.total
 
-    weights = [w / max(weights) for w in weights]  # Normalize for stability
+    # The estimation of the expected value with stochastic updates relies on those updates corresponding
+    # to the same distribution as its expectation. Prioritized replay introduces bias because it changes this
+    # distribution in an uncontrolled fashion, and therefore changes the solution that the estimates will
+    # converge to (even if the policy and state distribution are fixed). We can correct this bias by using
+    # importance-sampling (IS) weights w_i = (1/N * 1/P(i))^β that fully compensates for the non-uniform
+    # probabilities P(i) if β = 1. These weights can be folded into the Q-learning update by using w_i * δ_i
+    # instead of δ_i (this is thus weighted IS, not ordinary IS, see e.g. Mahmood et al., 2014).
+    # For stability reasons, we always normalize weights by 1/maxi wi so that they only scale the
+    # update downwards (Section 3.4, first paragraph)
+    weights = (self.real_size * probs) ** -self.beta
+
+    # As mentioned in Section 3.4, whenever importance sampling is used, all weights w_i were scaled
+    # so that max_i w_i = 1. We found that this worked better in practice as it kept all weights
+    # within a reasonable range, avoiding the possibility of extremely large updates. (Appendix B.2.1, Proportional prioritization)
+    weights = weights / weights.max()
 
     self.sample_weights = weights
     self.sample_indices = indices
 
-    return out
+    return samples
+
+  def update_priorities(self, data_idxs, priorities):
+    for data_idx, priority in zip(data_idxs, priorities):
+      # The first variant we consider is the direct, proportional prioritization where p_i = |δ_i| + eps,
+      # where eps is a small positive constant that prevents the edge-case of transitions not being
+      # revisited once their error is zero. (Section 3.3)
+      priority = (priority + self.eps) ** self.alpha
+
+      self.tree.update(data_idx, priority)
+      self.max_priority = max(self.max_priority, priority)
 
   def update(self, error):
-    return self._priority_update(self.sample_indices, error)
-
-  def _priority_update(self, indices, priorities):
-    """ The methods update samples"s priority.
-
-      Parameters
-      ----------
-      indices :
-          list of sample indices
-      """
-    for i, p in zip(indices, priorities):
-      self.tree.val_update(i, p ** self.alpha)
-
-  def reset_alpha(self, alpha):
-    """ Reset a exponent alpha.
-
-      Parameters
-      ----------
-      alpha : float
-      """
-    self.alpha, old_alpha = alpha, self.alpha
-    priorities = [
-        self.tree.get_val(i) ** -old_alpha
-        for i in range(self.tree.filled_size())
-    ]
-    self._priority_update(range(self.tree.filled_size()), priorities)
+    self.update_priorities(self.sample_indices, error)
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.tree)})"
+    return f"{self.__class__.__name__}({self.tree.__repr__()})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.tree)})"
+    return f"{self.__class__.__name__}({self.tree.__repr__()})"
 
   def __contain__(self, e):
     return e in self.tree
@@ -346,4 +273,4 @@ class ProportionalPrioritizedReplayBuffer():
     return iter(self.tree)
 
   def __len__(self):
-    return self.tree.filled_size()
+    return self.tree.real_size

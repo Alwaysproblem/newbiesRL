@@ -7,11 +7,51 @@ from util.agent import Agent
 from util.buffer import Experience
 from util.buffer import ProportionalPrioritizedReplayBuffer
 
+# class Q(nn.Module):
+#   """ Actor (Policy) Model."""
+
+#   def __init__(self, state_dim, action_space, seed=0, hidden_size=None):
+#     """
+#         Initialize parameters and build model.
+#         Params
+#         =======
+#             state_size (int): Dimension of each state
+#             action_size (int): Dimension of each action
+#             seed (int): Random seed
+#             fc1_unit (int): Number of nodes in first hidden layer
+#             fc2_unit (int): Number of nodes in second hidden layer
+#         """
+#     super().__init__()
+#     self.action_space = action_space
+#     self.seed = torch.manual_seed(seed)
+#     self.hidden_size = (64, 64, 64) if not hidden_size else hidden_size
+
+#     # note:  The self.hidden_layers attribute is defined as a list of lists,
+#     # note:  but it should be a list of `nn.Sequential` objects.
+#     # note:  You can fix this by using `nn.Sequential` to define each layer.
+#     # note:  After using `nn.Sequential`, you need to define a list with
+#     # note:  `nn.ModuleList` to construct the model graph.
+#     self.hidden_layers = nn.ModuleList([
+#         nn.Sequential(nn.Linear(in_size, out_size), nn.ReLU())
+#         for in_size, out_size in zip((state_dim, ) +
+#                                      self.hidden_size, self.hidden_size)
+#     ])
+#     self.output_layer = nn.Linear(self.hidden_size[-1], action_space)
+
+#   def forward(self, state):
+#     x = state
+#     for hidden_layer in self.hidden_layers:
+#       x = hidden_layer(x)
+#     x = self.output_layer(x)
+#     return x
+
 
 class Q(nn.Module):
   """ Actor (Policy) Model."""
 
-  def __init__(self, state_dim, action_space, seed=0, hidden_size=None):
+  def __init__(
+      self, state_dim, action_space, seed=0, fc1_unit=128, fc2_unit=128
+  ):
     """
         Initialize parameters and build model.
         Params
@@ -22,29 +62,19 @@ class Q(nn.Module):
             fc1_unit (int): Number of nodes in first hidden layer
             fc2_unit (int): Number of nodes in second hidden layer
         """
-    super().__init__()
-    self.action_space = action_space
+    super().__init__()  ## calls __init__ method of nn.Module class
     self.seed = torch.manual_seed(seed)
-    self.hidden_size = (64, 64, 64) if not hidden_size else hidden_size
+    self.fc1 = nn.Linear(state_dim, fc1_unit)
+    self.fc2 = nn.Linear(fc1_unit, fc2_unit)
+    self.fc3 = nn.Linear(fc2_unit, action_space)
 
-    # note:  The self.hidden_layers attribute is defined as a list of lists,
-    # note:  but it should be a list of `nn.Sequential` objects.
-    # note:  You can fix this by using `nn.Sequential` to define each layer.
-    # note:  After using `nn.Sequential`, you need to define a list with
-    # note:  `nn.ModuleList` to construct the model graph.
-    self.hidden_layers = nn.ModuleList([
-        nn.Sequential(nn.Linear(in_size, out_size), nn.ReLU())
-        for in_size, out_size in zip((state_dim, ) +
-                                     self.hidden_size, self.hidden_size)
-    ])
-    self.output_layer = nn.Linear(self.hidden_size[-1], action_space)
-
-  def forward(self, state):
-    x = state
-    for hidden_layer in self.hidden_layers:
-      x = hidden_layer(x)
-    x = self.output_layer(x)
-    return x
+  def forward(self, x):
+    """
+        Build a network that maps state -> action values.
+        """
+    x = F.relu(self.fc1(x))
+    x = F.relu(self.fc2(x))
+    return self.fc3(x)
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -63,6 +93,7 @@ class DQNAgent(Agent):
       epsilon=0.01,
       mem_size=None,
       forget_experience=True,
+      grad_clip=300,
       sample_ratio=None,
       seed=0
   ):
@@ -74,6 +105,7 @@ class DQNAgent(Agent):
     self.epsilon = epsilon
     self.seed = np.random.seed(seed)
     self.sample_ratio = sample_ratio
+    self.grad_clip = grad_clip
 
     #Q- Network
     self.qnetwork_local = Q(state_dim=state_dims,
@@ -81,8 +113,6 @@ class DQNAgent(Agent):
     self.qnetwork_target = Q(state_dim=state_dims,
                              action_space=action_space).to(device)
     self.optimizer = torch.optim.Adam(self.qnetwork_local.parameters(), lr=lr)
-    # self.optimizer = torch.optim.AdamW(
-    #     self.qnetwork_local.parameters(), lr=lr, amsgrad=True)
 
     # Replay memory
     self.memory = ProportionalPrioritizedReplayBuffer(max_size=mem_size)
@@ -170,9 +200,10 @@ class DQNAgent(Agent):
 
     self.memory.update(torch.abs(predicted_targets - labels).squeeze().tolist())
 
+    # sample_weight_ratio = 1.0
     sample_weight_ratio = torch.Tensor(
-        self.memory.sample_weights
-    ).unsqueeze(1).to(device) * (labels - predicted_targets).detach()
+        self.memory.sample_weights,
+    ).unsqueeze(1).to(device).detach() * (labels - predicted_targets).detach()
 
     # Sampled loss function
     loss = self.loss(
@@ -181,7 +212,9 @@ class DQNAgent(Agent):
     # loss = self.loss(predicted_targets, labels)
     self.optimizer.zero_grad()
     loss.backward()
-    # torch.nn.utils.clip_grad_value_(self.qnetwork_local.parameters(), 100)
+    torch.nn.utils.clip_grad_value_(
+        self.qnetwork_local.parameters(), self.grad_clip
+    )
     self.optimizer.step()
 
   def update_targe_q(self):
