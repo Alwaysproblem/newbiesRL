@@ -7,13 +7,7 @@ from torch.nn import functional as F
 
 from util.agent import Agent
 from util.buffer import ReplayBuffer, Trajectory
-
-
-def standardize(v):
-  """Method to standardize a rank-1 np array."""
-  assert len(v) > 1, "Cannot standardize vector of size 1"
-  v_std = (v - v.mean()) / (v.std() + 1e-08)
-  return v_std
+from util.algo import calc_gaes, calc_nstep_return, standardize
 
 
 class Actor(nn.Module):
@@ -211,38 +205,16 @@ class A2CAgent(Agent):
     with torch.no_grad():
       next_v_pred = self.critic.forward(next_states)
     v_preds = self.critic.forward(states).detach()
-    n_steps_rets = self.calc_nstep_return(
-        rewards=rewards, dones=terminates, next_v_pred=next_v_pred
+    n_steps_rets = calc_nstep_return(
+        rewards=rewards,
+        dones=terminates,
+        next_v_pred=next_v_pred,
+        gamma=self.gamma,
+        n_steps=self.n_steps
     )
     advs = n_steps_rets - v_preds
     v_targets = n_steps_rets
     return standardize(advs), v_targets
-
-  def calc_nstep_return(self, rewards, dones, next_v_pred):
-    T = len(rewards)  #pylint: disable=invalid-name
-    rets = torch.zeros_like(rewards).to(device)
-    _ = 1 - dones
-
-    for i in range(T):
-      # we generate the vector like `gamma = [[γ⁰, γ¹, γ² ...γⁿ]]`
-      # and gamma x reward (vector) to obtain the value for each timestamp.
-      # There are a few items to make it to N
-      # and we will take account all the items.
-      rets[i] = torch.unsqueeze(
-          self.gamma ** torch.arange(len(rewards[i:min(self.n_steps + i, T)])
-                                     ).to(device),
-          dim=0
-      ) @ rewards[i:min(self.n_steps + i, T)]
-
-    if T > self.n_steps:
-      # [[γ⁰, γ¹, γ² ...γⁿ]] x reward.T + γⁿ⁺¹ * V(sₜ₊ₙ₊₁)
-      value_n_steps = self.gamma ** self.n_steps * next_v_pred[self.n_steps:]
-      rets = torch.cat([
-          value_n_steps,
-          torch.zeros(size=(self.n_steps, 1)).to(device)
-      ]) + rets
-
-    return rets
 
   def calc_gae_advs_v_target(self, states, rewards, next_states, terminates):
     """calculate the GAE (Generalized Advantage Estimation) and V_target.
@@ -264,22 +236,11 @@ class A2CAgent(Agent):
       next_v_pred = self.critic.forward(next_states[-1])
     v_preds = self.critic.forward(states).detach()
     v_preds_all = torch.concat((v_preds, next_v_pred.unsqueeze(0)), dim=0)
-    advs = self.calc_gaes(rewards, terminates, v_preds_all)
+    advs = calc_gaes(
+        rewards, terminates, v_preds_all, self.gamma, self.gae_lambda
+    )
     v_target = advs + v_preds
     return standardize(advs), v_target
-
-  def calc_gaes(self, rewards, dones, v_preds):
-    # GAE = ∑ₗ (γλ)ˡδₜ₊ₗ
-    # δₜ₊ₗ = rₜ + γV(sₜ₊₁) − V(sₜ)
-    T = len(rewards)  # pylint: disable=invalid-name
-    gaes = torch.zeros_like(rewards, device=device)
-    future_gae = torch.tensor(0.0, dtype=rewards.dtype, device=device)
-    not_dones = 1 - dones  # to reset at episode boundary by multiplying 0
-    deltas = rewards + self.gamma * v_preds[1:] * not_dones - v_preds[:-1]
-    coef = self.gamma * self.gae_lambda
-    for t in reversed(range(T)):
-      gaes[t] = future_gae = deltas[t] + coef * not_dones[t] * future_gae
-    return gaes
 
   def action(self, state, mode="eval"):
     if mode == "train":

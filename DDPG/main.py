@@ -52,7 +52,7 @@ def main(
       render_mode="rgb_array",
   )
   # env = gym.make(
-  #     "LunarLander-v2",
+  #     "LunarLander-v3",
   #     render_mode="rgb_array",
   #     continuous=True,
   # )
