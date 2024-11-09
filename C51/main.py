@@ -55,8 +55,8 @@ def main(
   learn_iteration = 16
   update_q_target_freq = 4
   n_atoms = 51
-  v_min = -20
-  v_max = 20
+  v_min = -100
+  v_max = 100
 
   agent = Agent(
       state_dims=env.observation_space.shape[0],
