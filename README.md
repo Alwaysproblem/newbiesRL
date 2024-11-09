@@ -79,12 +79,12 @@ For example (DDPG):
   <tbody>
     <tr align="center" >
       <td>
-         <img width="100%" height="100%" src="DQN/DQNAgent_200.gif" alt="pic">
+         <img width="100%" height="100%" src="DQN/DQNAgent_400.gif" alt="pic">
         <br>
         <p><a href="https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf">DQN</a></p>
       </td>
       <td>
-         <img width="100%" height="100%" src="DDQN/DDQNAgent_100.gif" alt="pic">
+         <img width="100%" height="100%" src="DDQN/DDQNAgent_400.gif" alt="pic">
         <br>
         <p><a href="https://arxiv.org/pdf/1509.06461.pdf">DDQN</a></p>
       </td>

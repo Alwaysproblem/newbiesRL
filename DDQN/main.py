@@ -1,4 +1,5 @@
 """main executable file for DDQN"""
+import math
 import os
 import logging
 from itertools import repeat
@@ -16,8 +17,8 @@ from DDQN.ddqn import DDQNAgent as DDQN_torch
 Agent = DDQN_torch
 logging.basicConfig(level=logging.INFO)
 
-torch.manual_seed(0)
-np.random.seed(0)
+torch.manual_seed(1998)
+np.random.seed(1981)
 
 EPSILON_DECAY_STEPS = 100
 
@@ -27,7 +28,7 @@ def main(
     max_t=500,
     eps_start=1.0,
     eps_end=0.01,
-    eps_decay=0.996,
+    eps_decay=1000,
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
@@ -46,20 +47,22 @@ def main(
   scores = []  # list containing score from each episode
   scores_window = deque(maxlen=100)  # last 100 scores
   eps = eps_start
-  env = gym.make("CartPole-v1", render_mode="rgb_array")
+  env = gym.make("LunarLander-v3", render_mode="rgb_array")
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
   gamma = 0.99
-  lr = 0.001
+  lr = 1e-4
   batch_size = 64
   learn_iteration = 16
   update_q_target_freq = 4
+  memory_size = int(1e8)
 
   agent = Agent(
       state_dims=env.observation_space.shape[0],
       action_space=env.action_space.n,
       lr=lr,
       gamma=gamma,
+      mem_size=memory_size,
       batch_size=batch_size,
       forget_experience=False,
   )
@@ -84,7 +87,10 @@ def main(
 
       scores_window.append(score)  ## save the most recent score
       scores.append(score)  ## sae the most recent score
-      eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+      # eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+
+      eps = eps_end + (eps_start - eps_end) * \
+        math.exp(-1. * t * i_episode * learn_iteration / eps_decay)
       print(" " * os.get_terminal_size().columns, end="\r")
       print(
           f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
