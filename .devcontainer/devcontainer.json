@@ -20,7 +20,7 @@
   // "capAdd": ["SYS_PTRACE"],
   "mounts": [
     {
-      "source": "/home/lemon/Desktop/dockerVolumn",
+      "source": "/home/yongxiy/Desktop/dockerVolumn",
       "target": "/root/Desktop/dockerVolumn",
       "type": "volume"
     }
@@ -31,8 +31,8 @@
     // "seccomp=unconfined",
     "--gpus=0",
     "--shm-size=4G",
-    "memlock=-1:-1",
-    "--ulimit",
+    // "memlock=-1:-1",
+    // "--ulimit",
     "--name",
     "yyx-rltorch",
   ]

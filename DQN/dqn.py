@@ -7,44 +7,6 @@ from util.agent import Agent
 from util.buffer import Experience
 from util.buffer import ProportionalPrioritizedReplayBuffer
 
-# class Q(nn.Module):
-#   """ Actor (Policy) Model."""
-
-#   def __init__(self, state_dim, action_space, seed=0, hidden_size=None):
-#     """
-#         Initialize parameters and build model.
-#         Params
-#         =======
-#             state_size (int): Dimension of each state
-#             action_size (int): Dimension of each action
-#             seed (int): Random seed
-#             fc1_unit (int): Number of nodes in first hidden layer
-#             fc2_unit (int): Number of nodes in second hidden layer
-#         """
-#     super().__init__()
-#     self.action_space = action_space
-#     self.seed = torch.manual_seed(seed)
-#     self.hidden_size = (64, 64, 64) if not hidden_size else hidden_size
-
-#     # note:  The self.hidden_layers attribute is defined as a list of lists,
-#     # note:  but it should be a list of `nn.Sequential` objects.
-#     # note:  You can fix this by using `nn.Sequential` to define each layer.
-#     # note:  After using `nn.Sequential`, you need to define a list with
-#     # note:  `nn.ModuleList` to construct the model graph.
-#     self.hidden_layers = nn.ModuleList([
-#         nn.Sequential(nn.Linear(in_size, out_size), nn.ReLU())
-#         for in_size, out_size in zip((state_dim, ) +
-#                                      self.hidden_size, self.hidden_size)
-#     ])
-#     self.output_layer = nn.Linear(self.hidden_size[-1], action_space)
-
-#   def forward(self, state):
-#     x = state
-#     for hidden_layer in self.hidden_layers:
-#       x = hidden_layer(x)
-#     x = self.output_layer(x)
-#     return x
-
 
 class Q(nn.Module):
   """ Actor (Policy) Model."""

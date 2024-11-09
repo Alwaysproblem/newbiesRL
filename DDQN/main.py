@@ -52,8 +52,8 @@ def main(
 
   gamma = 0.99
   lr = 1e-4
-  batch_size = 128
-  learn_iteration = 1
+  batch_size = 64
+  learn_iteration = 16
   update_q_target_freq = 4
   memory_size = int(1e8)
 
