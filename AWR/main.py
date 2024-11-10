@@ -52,8 +52,8 @@ def main(
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
   gamma = 0.995
-  lr_actor = 0.001
-  lr_critic = 0.001
+  lr_actor = 5e-5
+  lr_critic = 1e-4
   batch_size = 64
   beta = 0.01
 
@@ -64,10 +64,11 @@ def main(
   learn_iteration = 10
   num_workers = 32
 
-  grad_clip = 0.5
+  grad_clip = 100
   norm_factor = 10
   value_network_scale = True
   l2_loss_weight = 0.01
+  memory_size = int(1e8)
 
   agent = Agent(
       state_dims=env.observation_space.shape[0],
@@ -77,7 +78,7 @@ def main(
       gamma=gamma,
       batch_size=batch_size,
       forget_experience=False,
-      mem_size=100000,
+      mem_size=memory_size,
       beta=beta,
       td_lambda=td_lambda,
       awr_beta=awr_beta,

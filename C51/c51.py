@@ -15,11 +15,11 @@ class Q(nn.Module):
       self,
       state_dim,
       action_space,
-      n_atoms,
+      n_atoms=51,
       seed=0,
-      hidden_size=None,
-      init_weight_gain=np.sqrt(2),
-      init_bias=0
+      fc1_unit=128,
+      fc2_unit=128,
+      fc3_unit=128,
   ):
     """
         Initialize parameters and build model.
@@ -31,58 +31,26 @@ class Q(nn.Module):
             fc1_unit (int): Number of nodes in first hidden layer
             fc2_unit (int): Number of nodes in second hidden layer
         """
-    super().__init__()
+    super().__init__()  ## calls __init__ method of nn.Module class
+    self.seed = torch.manual_seed(seed)
     self.action_space = action_space
     self.n_atoms = n_atoms
-    self.seed = torch.manual_seed(seed)
-    self.hidden_size = (100, 100, 100) if not hidden_size else hidden_size
-    self.bn = nn.BatchNorm1d(state_dim)
+    self.fc1 = nn.Linear(state_dim, fc1_unit)
+    self.fc2 = nn.Linear(fc1_unit, fc2_unit)
+    self.fc3 = nn.Linear(fc2_unit, fc3_unit)
+    self.fc4 = nn.Linear(fc3_unit, action_space * n_atoms)
 
-    def init_weights(m):
-      if isinstance(m, nn.Linear):
-        nn.init.orthogonal_(m.weight, gain=init_weight_gain)
-        nn.init.constant_(m.bias, init_bias)
-
-    # note:  The self.hidden_layers attribute is defined as a list of lists,
-    # note:  but it should be a list of `nn.Sequential` objects.
-    # note:  You can fix this by using `nn.Sequential` to define each layer.
-    # note:  After using `nn.Sequential`, you need to define a list with
-    # note:  `nn.ModuleList` to construct the model graph.
-    self.hidden_layers = nn.ModuleList([
-        nn.Sequential(nn.Linear(in_size, out_size), nn.LeakyReLU())
-        for in_size, out_size in zip((state_dim, ) +
-                                     self.hidden_size, self.hidden_size)
-    ])
-    self.hidden_layers.apply(init_weights)
-
-    def init_output_weights(m):
-      if isinstance(m, nn.Linear):
-
-        nn.init.orthogonal_(m.weight, gain=init_weight_gain)
-        nn.init.constant_(m.bias, init_bias)
-
-    self.output_layers = nn.ModuleList([
-        nn.Sequential(
-            nn.Linear(self.hidden_size[-1], n_atoms), nn.LeakyReLU(),
-            nn.Softmax(dim=-1)
-        ) for _ in range(action_space)
-    ])
-
-    self.output_layers.apply(init_output_weights)
-
-  def forward(self, state):
-    x = self.bn(state)
-    for hidden_layer in self.hidden_layers:
-      x = hidden_layer(x)
-    out = torch.concat([
-        torch.unsqueeze(output_layer(x), dim=1)
-        for output_layer in self.output_layers
-    ],
-                       dim=1)
-    # x = self.output_layer(x)
-    # x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
-    # x = F.softmax(x, dim=-1)
-    return out
+  def forward(self, x):
+    """
+        Build a network that maps state -> action values.
+        """
+    x = F.leaky_relu(self.fc1(x))
+    x = F.leaky_relu(self.fc2(x))
+    x = F.leaky_relu(self.fc3(x))
+    x = self.fc4(x)
+    x = torch.reshape(x, (-1, self.action_space, self.n_atoms))
+    x = F.softmax(x, dim=-1)
+    return x
 
 
 # device = torch.device("cpu")

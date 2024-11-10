@@ -1,5 +1,6 @@
 """main executable file for Distribution Q learning."""
 import os
+import math
 import logging
 from itertools import repeat
 import gymnasium as gym
@@ -24,9 +25,9 @@ EPSILON_DECAY_STEPS = 100
 def main(
     n_episodes=2000,
     max_t=500,
-    eps_start=1,
+    eps_start=0.9,
     eps_end=0.01,
-    eps_decay=0.996,
+    eps_decay=1000,
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
@@ -45,17 +46,17 @@ def main(
   scores = []  # list containing score from each episode
   scores_window = deque(maxlen=100)  # last 100 scores
   eps = eps_start
-  env = gym.make("CartPole-v1", render_mode="rgb_array")
+  env = gym.make("LunarLander-v3", render_mode="rgb_array")
   env = TrainMonitor(env, tensorboard_dir="./logs", tensorboard_write_all=True)
 
   gamma = 0.99
-  lr = 0.0001
+  lr = 1e-4
   batch_size = 64
   learn_iteration = 16
   update_q_target_freq = 4
   n_atoms = 51
-  v_min = -20
-  v_max = 20
+  v_min = -100
+  v_max = 100
 
   agent = Agent(
       state_dims=env.observation_space.shape[0],
@@ -89,7 +90,9 @@ def main(
 
       scores_window.append(score)  ## save the most recent score
       scores.append(score)  ## sae the most recent score
-      eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+      # eps = max(eps * eps_decay, eps_end)  ## decrease the epsilon
+      eps = eps_end + (eps_start - eps_end) * \
+        math.exp(-1. * t * i_episode * learn_iteration / eps_decay)
       print(" " * os.get_terminal_size().columns, end="\r")
       print(
           f"\rEpisode {i_episode}\tAverage Score {np.mean(scores_window):.2f}",
