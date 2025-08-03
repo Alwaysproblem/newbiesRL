@@ -107,7 +107,7 @@ class ReplayBuffer:
   def enqueue(self, sample):
     if not self.isfull():
       return self.q.append(sample)
-    warnings.warn("the buffer is full, the first sample will be dropped.", stacklevel=2)
+    warnings.warn("the buffer is full, the first sample will be dropped.", stacklevel=1)
     self._dequeue()
     return self.q.append(sample)
 
