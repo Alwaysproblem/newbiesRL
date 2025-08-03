@@ -1,25 +1,20 @@
 """The buffer protocol described here"""
+
+import random
+import warnings
 from collections import deque
 from copy import deepcopy
-import warnings
-import random
+
 import numpy as np
+
 from util.tree import SumTree
 
 
 class Experience:
-  # pylint: disable=line-too-long
   """Experience is a pickle of (state, action, reward, next_state, done, log_prob...)"""
 
   def __init__(
-      self,
-      state=None,
-      action=None,
-      reward=None,
-      next_state=None,
-      done=None,
-      log_prob=None,
-      **kwargs
+    self, state=None, action=None, reward=None, next_state=None, done=None, log_prob=None, **kwargs
   ) -> None:
     self.state = state
     self.action = action
@@ -33,7 +28,6 @@ class Experience:
 
 
 class Trajectory:
-  # pylint: disable=line-too-long
   """
   The Trajectory class is used to store the experiences of a whole trajectory policy.
 
@@ -68,13 +62,13 @@ class Trajectory:
     return iter(self.q)
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
 
 
-class ReplayBuffer():
+class ReplayBuffer:
   """Replay Buffer for off-policy training"""
 
   def __init__(self, max_size=None) -> None:
@@ -82,12 +76,7 @@ class ReplayBuffer():
     self.q: deque = deque([], maxlen=max_size)
 
   def sample_from(
-      self,
-      sample_ratio=None,
-      num_samples=1,
-      drop_samples=False,
-      sample_distribution_fn=None,
-      replace=True,
+    self, sample_ratio=None, num_samples=1, drop_samples=False, sample_distribution_fn=None, replace=True
   ):
     """Sample a batch of experiences from the replay buffer"""
     if not self.q:
@@ -100,10 +89,10 @@ class ReplayBuffer():
       return []
 
     selected_sample_ids = np.random.choice(
-        range(len(self.q)),
-        size=(num_samples, ),
-        replace=replace,
-        p=sample_distribution_fn() if sample_distribution_fn else None
+      range(len(self.q)),
+      size=(num_samples,),
+      replace=replace,
+      p=sample_distribution_fn() if sample_distribution_fn else None,
     )
 
     samples = [deepcopy(self.q[idx]) for idx in selected_sample_ids]
@@ -118,7 +107,7 @@ class ReplayBuffer():
   def enqueue(self, sample):
     if not self.isfull():
       return self.q.append(sample)
-    warnings.warn("the buffer is full, the first sample will be dropped.")
+    warnings.warn("the buffer is full, the first sample will be dropped.", stacklevel=1)
     self._dequeue()
     return self.q.append(sample)
 
@@ -146,10 +135,10 @@ class ReplayBuffer():
     self.q = deque([sample for sample in self.q if sample is not None])
 
   def __repr__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(repr(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({', '.join(repr(e) for e in self.q)})"
 
   def __str__(self) -> str:
-    return f"{self.__class__.__name__}({", ".join(str(e) for e in self.q)})"
+    return f"{self.__class__.__name__}({', '.join(str(e) for e in self.q)})"
 
   def __contain__(self, e):
     return e in self.q
@@ -161,7 +150,6 @@ class ReplayBuffer():
     return iter(self.q)
 
 
-# pylint: disable=line-too-long
 # # The Code is taken from https://github.com/Howuhh/prioritized_experience_replay/blob/main/memory/buffer.py
 class ProportionalPrioritizedReplayBuffer:
   """Proportional Prioritized ReplayBuffer for off-policy training"""
@@ -171,9 +159,14 @@ class ProportionalPrioritizedReplayBuffer:
     self.tree = SumTree(size=self.size)
 
     # PER params
-    self.eps = eps  # minimal priority, prevents zero probabilities
-    self.alpha = alpha  # determines how much prioritization is used, α = 0 corresponding to the uniform case
-    self.beta = beta  # determines the amount of importance-sampling correction, b = 1 fully compensate for the non-uniform probabilities
+    # minimal priority, prevents zero probabilities
+    self.eps = eps
+    # determines how much prioritization is used
+    # α = 0 corresponding to the uniform case  # noqa: RUF003
+    self.alpha = alpha
+    # determines the amount of importance-sampling correction,
+    # β = 1 fully compensate for the non-uniform probabilities
+    self.beta = beta
     self.max_priority = eps  # priority for new samples, init as eps
 
     self.count = 0
@@ -182,7 +175,6 @@ class ProportionalPrioritizedReplayBuffer:
     self.sample_indices = []
 
   def enqueue(self, sample):
-
     # store transition index with maximum priority in sum tree
     self.tree.add(self.max_priority, sample)
 
@@ -205,7 +197,8 @@ class ProportionalPrioritizedReplayBuffer:
 
     # To sample a minibatch of size k, the range [0, p_total] is divided equally into k ranges.
     # Next, a value is uniformly sampled from each range. Finally the transitions that correspond
-    # to each of these sampled values are retrieved from the tree. (Appendix B.2.1, Proportional prioritization)
+    # to each of these sampled values are retrieved from the tree.
+    # (Appendix B.2.1, Proportional prioritization)
     segment = self.tree.total / num_samples
     for i in range(num_samples):
       a, b = segment * i, segment * (i + 1)
@@ -219,24 +212,35 @@ class ProportionalPrioritizedReplayBuffer:
       indices.append(index)
       samples.append(sample_idx)
 
-    # Concretely, we define the probability of sampling transition i as P(i) = p_i^α / \sum_{k} p_k^α
+    # Concretely, we define the probability of sampling transition i as P(i) = p_i^α / \sum_{k} p_k^α  # noqa: RUF003, E501
     # where p_i > 0 is the priority of transition i. (Section 3.3)
     probs = priorities / self.tree.total
 
-    # The estimation of the expected value with stochastic updates relies on those updates corresponding
-    # to the same distribution as its expectation. Prioritized replay introduces bias because it changes this
-    # distribution in an uncontrolled fashion, and therefore changes the solution that the estimates will
-    # converge to (even if the policy and state distribution are fixed). We can correct this bias by using
-    # importance-sampling (IS) weights w_i = (1/N * 1/P(i))^β that fully compensates for the non-uniform
-    # probabilities P(i) if β = 1. These weights can be folded into the Q-learning update by using w_i * δ_i
-    # instead of δ_i (this is thus weighted IS, not ordinary IS, see e.g. Mahmood et al., 2014).
-    # For stability reasons, we always normalize weights by 1/maxi wi so that they only scale the
+    # The estimation of the expected value with stochastic updates
+    # relies on those updates corresponding
+    # to the same distribution as its expectation.
+    # Prioritized replay introduces bias because it changes this
+    # distribution in an uncontrolled fashion, a
+    # nd therefore changes the solution that the estimates will
+    # converge to (even if the policy and state distribution are fixed).
+    # We can correct this bias by using
+    # importance-sampling (IS) weights w_i = (1/N * 1/P(i))^β
+    # that fully compensates for the non-uniform
+    # probabilities P(i) if β = 1. These weights can be
+    # folded into the Q-learning update by using w_i * δ_i
+    # instead of δ_i (this is thus weighted IS, not ordinary IS,
+    # see e.g. Mahmood et al., 2014).
+    # For stability reasons, we always normalize weights
+    # by 1/maxi wi so that they only scale the
     # update downwards (Section 3.4, first paragraph)
     weights = (self.real_size * probs) ** -self.beta
 
-    # As mentioned in Section 3.4, whenever importance sampling is used, all weights w_i were scaled
-    # so that max_i w_i = 1. We found that this worked better in practice as it kept all weights
-    # within a reasonable range, avoiding the possibility of extremely large updates. (Appendix B.2.1, Proportional prioritization)
+    # As mentioned in Section 3.4, whenever importance sampling is used,
+    # all weights w_i were scaled
+    # so that max_i w_i = 1. We found that this worked better
+    # in practice as it kept all weights
+    # within a reasonable range, avoiding the possibility
+    # of extremely large updates. (Appendix B.2.1, Proportional prioritization)
     weights = weights / weights.max()
 
     self.sample_weights = weights

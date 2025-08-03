@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from util.buffer import ReplayBuffer
+
 from util.agent import Agent
-from util.buffer import Experience
+from util.buffer import Experience, ReplayBuffer
 
 
 class Q(nn.Module):
@@ -146,7 +146,6 @@ class C51Agent(Agent):
     self.memory.enqueue(scenario)
 
   def _learn(self, experiences):
-    # pylint: disable=line-too-long
     """Update value parameters using given batch of experience tuples.
         Params
         =======
@@ -211,7 +210,7 @@ class C51Agent(Agent):
     )
     # bⱼ ∈ [0, N - 1], shape: (batch, n_atom)
     b_j = (tau_z - self.v_min) / self.delta
-    l = torch.floor(b_j).clamp(max=self.n_atoms - 1).long()
+    l = torch.floor(b_j).clamp(max=self.n_atoms - 1).long()  # noqa: E741
     u = torch.ceil(b_j).clamp(max=self.n_atoms - 1
                               ).long()  # Prevent out of bounds
     # m: shape (batch, n_atoms)
@@ -231,11 +230,11 @@ class C51Agent(Agent):
     delta_m_l = p_j * (u - b_j)
     delta_m_u = p_j * (b_j - l)
 
-    # mₗ ← mₗ + pⱼ(xt+1, a*)(u − bj )
+    # mₗ ← mₗ + pⱼ(xt+1, a*)(u - bj )
     m.scatter_add_(1, l, delta_m_l)
-    # mᵤ ← mᵤ + pⱼ(xt+1, a*)(bj − l)
+    # mᵤ ← mᵤ + pⱼ(xt+1, a*)(bj - l)
     m.scatter_add_(1, u, delta_m_u)
     return m
 
-  def update_targe_q(self):
+  def update_target_q(self):
     self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())

@@ -1,17 +1,20 @@
 """main executable file for DDQN"""
+import logging
 import math
 import os
-import logging
-from itertools import repeat
-import gymnasium as gym
-import torch
-import numpy as np
-from util import generate_gif
-from util.wrappers import TrainMonitor
-from util.buffer import Experience
 from collections import deque
+from itertools import repeat
+
+import gymnasium as gym
+import numpy as np
+import torch
+
 # pylint: disable=invalid-name
 from DDQN.ddqn import DDQNAgent as DDQN_torch
+from util import generate_gif
+from util.buffer import Experience
+from util.wrappers import TrainMonitor
+
 # from DQN.dqn_torch import DQNAgent as DQN_torch
 
 Agent = DDQN_torch
@@ -32,7 +35,6 @@ def main(
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
-  # pylint: disable=line-too-long
   """Deep Q-Learning
 
     Params
@@ -80,7 +82,7 @@ def main(
       score += reward
 
       if (t * i_episode) % update_q_target_freq:
-        agent.update_targe_q()
+        agent.update_target_q()
 
       if done or score_term_rules(score):
         break

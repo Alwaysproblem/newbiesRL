@@ -1,9 +1,9 @@
 """MPO implementation with pytorch."""
+
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import kl_divergence
-from torch.distributions import Categorical
+from torch.distributions import Categorical, kl_divergence
 from torch.nn import functional as F
 
 from util.agent import Agent
@@ -13,29 +13,29 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class Actor(nn.Module):
-  """ Actor (Policy) Model."""
+  """Actor (Policy) Model."""
 
   def __init__(
-      self,
-      state_dim,
-      action_space,
-      seed=0,
-      fc1_unit=256,
-      fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
-      init_policy_weight_gain=0.01,
-      init_bias=0
+    self,
+    state_dim,
+    action_space,
+    seed=0,
+    fc1_unit=256,
+    fc2_unit=256,
+    init_weight_gain=np.sqrt(2),  # noqa: B008
+    init_policy_weight_gain=0.01,
+    init_bias=0,
   ):
     """
-        Initialize parameters and build model.
-        Params
-        =======
-            state_size (int): Dimension of each state
-            action_size (int): Dimension of each action
-            seed (int): Random seed
-            fc1_unit (int): Number of nodes in first hidden layer
-            fc2_unit (int): Number of nodes in second hidden layer
-        """
+    Initialize parameters and build model.
+    Params
+    =======
+        state_size (int): Dimension of each state
+        action_size (int): Dimension of each action
+        seed (int): Random seed
+        fc1_unit (int): Number of nodes in first hidden layer
+        fc2_unit (int): Number of nodes in second hidden layer
+    """
     super().__init__()  ## calls __init__ method of nn.Module class
     self.seed = torch.manual_seed(seed)
     self.fc1 = nn.Linear(state_dim, fc1_unit)
@@ -52,8 +52,8 @@ class Actor(nn.Module):
 
   def forward(self, x):
     """
-        Build a network that maps state -> action values.
-        """
+    Build a network that maps state -> action values.
+    """
     x = F.relu(self.fc1(x))
     x = F.relu(self.fc2(x))
     pi = F.softmax(self.fc_policy(x), dim=1)
@@ -61,29 +61,29 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-  """ Critic (Policy) Model."""
+  """Critic (Policy) Model."""
 
   def __init__(
-      self,
-      state_dim,
-      action_space=1,
-      seed=0,
-      fc1_unit=256,
-      fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
-      init_value_weight_gain=1,
-      init_bias=0
+    self,
+    state_dim,
+    action_space=1,
+    seed=0,
+    fc1_unit=256,
+    fc2_unit=256,
+    init_weight_gain=np.sqrt(2),  # noqa: B008
+    init_value_weight_gain=1,
+    init_bias=0,
   ):
     """
-        Initialize parameters and build model.
-        Params
-        =======
-            state_size (int): Dimension of each state
-            action_size (int): Dimension of each action
-            seed (int): Random seed
-            fc1_unit (int): Number of nodes in first hidden layer
-            fc2_unit (int): Number of nodes in second hidden layer
-        """
+    Initialize parameters and build model.
+    Params
+    =======
+        state_size (int): Dimension of each state
+        action_size (int): Dimension of each action
+        seed (int): Random seed
+        fc1_unit (int): Number of nodes in first hidden layer
+        fc2_unit (int): Number of nodes in second hidden layer
+    """
     super().__init__()  ## calls __init__ method of nn.Module class
     self.seed = torch.manual_seed(seed)
     self.action_space = action_space
@@ -116,31 +116,30 @@ class MPOAgent(Agent):
   """Interacts with and learns form environment."""
 
   def __init__(
-      self,
-      state_dims,
-      action_space,
-      gamma=0.99,
-      lr_actor=0.001,
-      lr_critic=0.001,
-      batch_size=64,
-      epsilon=0.01,
-      mem_size=None,
-      forget_experience=True,
-      grad_clip=0.5,
-      init_eta=1.0,
-      lr_eta=0.001,
-      eta_epsilon=0.1,
-      action_sample_round=10,
-      kl_epsilon=0.01,
-      kl_alpha=1.,
-      kl_alpha_max=1.0,
-      kl_clip_min=0.0,
-      kl_clip_max=1.0,
-      improved_policy_iteration=5,
-      update_tau=0.005,
-      seed=0,
+    self,
+    state_dims,
+    action_space,
+    gamma=0.99,
+    lr_actor=0.001,
+    lr_critic=0.001,
+    batch_size=64,
+    epsilon=0.01,
+    mem_size=None,
+    forget_experience=True,
+    grad_clip=0.5,
+    init_eta=1.0,
+    lr_eta=0.001,
+    eta_epsilon=0.1,
+    action_sample_round=10,
+    kl_epsilon=0.01,
+    kl_alpha=1.0,
+    kl_alpha_max=1.0,
+    kl_clip_min=0.0,
+    kl_clip_max=1.0,
+    improved_policy_iteration=5,
+    update_tau=0.005,
+    seed=0,
   ):
-
     self.state_dims = state_dims
     self.action_space = action_space
     self.gamma = gamma
@@ -156,7 +155,7 @@ class MPOAgent(Agent):
     self.action_sample_round = action_sample_round
     self.kl_epsilon = kl_epsilon
     self.kl_alpha_scaler = kl_alpha
-    self.kl_alpha = torch.tensor(0., requires_grad=False).to(device)
+    self.kl_alpha = torch.tensor(0.0, requires_grad=False).to(device)
     self.kl_clip_min = kl_clip_min
     self.kl_clip_max = kl_clip_max
     self.kl_alpha_max = kl_alpha_max
@@ -168,17 +167,13 @@ class MPOAgent(Agent):
     self.actor_target = Actor(state_dims, action_space).to(device)
     self.actor_target.load_state_dict(self.actor.state_dict())
 
-    #Q Network
+    # Q Network
     self.critic = Critic(self.state_dims, self.action_space).to(device)
     self.critic_target = Critic(self.state_dims, self.action_space).to(device)
     self.critic_target.load_state_dict(self.critic.state_dict())
 
-    self.actor_optimizer = torch.optim.Adam(
-        self.actor.parameters(), lr=self.lr_actor
-    )
-    self.critic_optimizer = torch.optim.Adam(
-        self.critic.parameters(), lr=self.lr_critic
-    )
+    self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.lr_actor)
+    self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr_critic)
 
     self.eta = torch.tensor(init_eta).to(device)
     self.eta.requires_grad = True
@@ -198,9 +193,7 @@ class MPOAgent(Agent):
     polcy_loss = []
     val_loss = []
     eta_loss = []
-    trajectories = self.memory.sample_from(
-        num_samples=iteration, replace=replace
-    )
+    trajectories = self.memory.sample_from(num_samples=iteration, replace=replace)
     if not trajectories:
       return polcy_loss, val_loss, eta_loss
     for trajectory in trajectories:
@@ -209,15 +202,9 @@ class MPOAgent(Agent):
       val_loss.append(val_loss_.cpu().data.numpy())
       eta_loss.append(eta_loss_.cpu().data.numpy())
 
-    return (
-        np.array(polcy_loss).mean(),
-        np.array(val_loss).mean(),
-        np.array(eta_loss).mean(),
-    )
+    return (np.array(polcy_loss).mean(), np.array(val_loss).mean(), np.array(eta_loss).mean())
 
-  def policy_evaluation(
-      self, states, actions, rewards, next_states, terminates
-  ):
+  def policy_evaluation(self, states, actions, rewards, next_states, terminates):
     self.critic.train()
     self.critic_target.eval()
 
@@ -248,14 +235,9 @@ class MPOAgent(Agent):
       sample_action = action_dist.sample().reshape(actions.shape)
       sample_actions.append(sample_action)
     sample_actions = torch.cat(sample_actions, dim=0)  # shape [BxN, action_dim]
-    tiled_states = torch.tile(
-        states, (self.action_sample_round, 1)
-    )  # shape [BxN, state_dim]
-    target_q = self.critic_target.forward(
-        tiled_states, sample_actions
-    )  # shape [BxN, 1]
-    target_q = target_q.reshape(-1, self.action_sample_round).detach(
-    )  # shape [B, N]
+    tiled_states = torch.tile(states, (self.action_sample_round, 1))  # shape [BxN, state_dim]
+    target_q = self.critic_target.forward(tiled_states, sample_actions)  # shape [BxN, 1]
+    target_q = target_q.reshape(-1, self.action_sample_round).detach()  # shape [B, N]
 
     # η = argmin[ η * ε + η * Σₖ ( 1/K * log(Σₙ( 1/N * exp(Q(sₙ, aₖ)) / η)) ) ]
     # This is for numberic stability.
@@ -265,9 +247,11 @@ class MPOAgent(Agent):
     # ).mean()
 
     max_q = target_q.max(dim=-1, keepdim=True).values
-    eta_loss = self.eta * self.eta_epsilon + self.eta * torch.log(
-        torch.exp((target_q - max_q) / self.eta).mean(dim=-1)
-    ).mean() + torch.mean(max_q)
+    eta_loss = (
+      self.eta * self.eta_epsilon
+      + self.eta * torch.log(torch.exp((target_q - max_q) / self.eta).mean(dim=-1)).mean()
+      + torch.mean(max_q)
+    )
 
     self.eta_optimizer.zero_grad()
     eta_loss.backward()
@@ -279,12 +263,9 @@ class MPOAgent(Agent):
 
     return action_weights, sample_actions, tiled_states, eta_loss
 
-  def fit_an_improved_policy(
-      self, action_weights, sample_actions, tiled_states
-  ):
+  def fit_an_improved_policy(self, action_weights, sample_actions, tiled_states):
     _, action_dist = self.action(tiled_states, mode="train")
-    log_prob = action_dist.log_prob(sample_actions.detach().T
-                                    ).T.reshape(-1, self.action_sample_round)
+    log_prob = action_dist.log_prob(sample_actions.detach().T).T.reshape(-1, self.action_sample_round)
 
     # π(k+1) = argmax Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ))
     policy_loss = torch.mean(log_prob * action_weights.detach())
@@ -297,20 +278,15 @@ class MPOAgent(Agent):
     kl = torch.clamp(kl, min=self.kl_clip_min, max=self.kl_clip_max)
 
     if self.kl_alpha_scaler > 0:
-      # pylint: disable=line-too-long
       # Update lagrange multipliers by gradient descent
       # this equation is derived from last eq of [2] p.5,
-      # just differentiate with respect to α
-      # and update α so that the equation is to be minimized.
+      # just differentiate with respect to α  # noqa: RUF003
+      # and update α so that the equation is to be minimized.  # noqa: RUF003
       # inspired by https://github.com/daisatojp/mpo/blob/13da541861f901436c993d0e9b0d369bf7f771d1/mpo/mpo.py#L394
-      # pylint: enable=line-too-long
       self.kl_alpha -= self.kl_alpha_scaler * (self.kl_epsilon - kl).detach()
-      self.kl_alpha = torch.clamp(
-          self.kl_alpha, min=1e-8, max=self.kl_alpha_max
-      )
-    # pylint: disable=line-too-long
-    # max_θ min_α L(θ,η) = Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ)) + α * (ε - Σₖ 1/K * KL(πₖ(a|sₖ)||πθ(a|sₖ)))
-    # pylint: enable=line-too-long
+      self.kl_alpha = torch.clamp(self.kl_alpha, min=1e-8, max=self.kl_alpha_max)
+
+    # max_θ min_α L(θ,η) = Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ)) + α * (ε - Σₖ 1/K * KL(πₖ(a|sₖ)||πθ(a|sₖ)))  # noqa: RUF003, E501
     policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))
 
     self.actor_optimizer.zero_grad()
@@ -322,31 +298,20 @@ class MPOAgent(Agent):
 
   def policy_improvement(self, states, actions):
     # step 2
-    (action_weights, sample_actions, tiled_states,
-     eta_loss) = self.find_action_weights(states, actions)
+    (action_weights, sample_actions, tiled_states, eta_loss) = self.find_action_weights(states, actions)
     # step 3
     for _ in range(self.improved_policy_iteration):
-      policy_loss = self.fit_an_improved_policy(
-          action_weights, sample_actions, tiled_states
-      )
+      policy_loss = self.fit_an_improved_policy(action_weights, sample_actions, tiled_states)
     return policy_loss, eta_loss
 
   def _learn(self, trajectory: Trajectory):
-    states = torch.from_numpy(np.vstack([e.state for e in trajectory])
-                              ).float().to(device)
-    actions = torch.from_numpy(np.vstack([e.action for e in trajectory])
-                               ).long().to(device)
-    rewards = torch.from_numpy(np.vstack([e.reward for e in trajectory])
-                               ).float().to(device)
-    next_states = torch.from_numpy(
-        np.vstack([e.next_state for e in trajectory])
-    ).float().to(device)
-    terminates = torch.from_numpy(np.vstack([e.done for e in trajectory])
-                                  ).float().to(device)
+    states = torch.from_numpy(np.vstack([e.state for e in trajectory])).float().to(device)
+    actions = torch.from_numpy(np.vstack([e.action for e in trajectory])).long().to(device)
+    rewards = torch.from_numpy(np.vstack([e.reward for e in trajectory])).float().to(device)
+    next_states = torch.from_numpy(np.vstack([e.next_state for e in trajectory])).float().to(device)
+    terminates = torch.from_numpy(np.vstack([e.done for e in trajectory])).float().to(device)
 
-    val_loss = self.policy_evaluation(
-        states, actions, rewards, next_states, terminates
-    )
+    val_loss = self.policy_evaluation(states, actions, rewards, next_states, terminates)
 
     policy_loss, eta_loss = self.policy_improvement(states, actions)
 
@@ -374,11 +339,11 @@ class MPOAgent(Agent):
 
   def take_action(self, state, _=0):
     """Returns action for given state as per current policy
-        Params
-        =======
-            state (array_like): current state
-            epsilon (float): epsilon, for epsilon-greedy action selection
-        """
+    Params
+    =======
+        state (array_like): current state
+        epsilon (float): epsilon, for epsilon-greedy action selection
+    """
     state = torch.from_numpy(state).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
@@ -387,25 +352,21 @@ class MPOAgent(Agent):
     return action_values.item()
 
   def log_prob(self, action):
-    return self.dist.log_prob(torch.Tensor([action]).to(device)
-                              ).data.cpu().item()
+    return self.dist.log_prob(torch.Tensor([action]).to(device)).data.cpu().item()
 
   def remember(self, scenario: Trajectory):
     self.memory.enqueue(scenario)
 
   def soft_update(self, local_model, target_model):
     """
-      Soft update model parameters.
-      θ_target = τ * θ_local + (1 - τ) * θ_target
-      Token from
-      https://github.com/udacity/deep-reinforcement-learning/blob/master/dqn/exercise/dqn_agent.py
+    Soft update model parameters.
+    θ_target = τ * θ_local + (1 - τ) * θ_target
+    Token from
+    https://github.com/udacity/deep-reinforcement-learning/blob/master/dqn/exercise/dqn_agent.py
     """
-    for target_param, local_param in zip(
-        target_model.parameters(), local_model.parameters()
-    ):
+    for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
       target_param.data.copy_(
-          self.update_tau * local_param.data +
-          (1.0 - self.update_tau) * target_param.data
+        self.update_tau * local_param.data + (1.0 - self.update_tau) * target_param.data
       )
 
   def update_critic_target_network(self):

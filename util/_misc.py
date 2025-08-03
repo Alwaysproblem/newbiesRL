@@ -1,9 +1,10 @@
 """Some basic helper function"""
-import os
 import logging
+import os
 
 import numpy as np
 from PIL import Image
+
 from .wrappers import TrainMonitor
 
 
@@ -15,7 +16,6 @@ def generate_gif(
     duration=50,
     max_episode_steps=None
 ):
-  # pylint: disable=line-too-long
   r"""
     Store a gif from the episode frames.
     Parameters
@@ -40,7 +40,7 @@ def generate_gif(
     """
   logger = logging.getLogger('generate_gif')
   max_episode_steps = max_episode_steps \
-      or getattr(getattr(env, 'spec'), 'max_episode_steps', 10000)
+      or getattr(env.spec, 'max_episode_steps', 10000)
 
   if isinstance(env, TrainMonitor):
     env = env.env  # unwrap to strip off TrainMonitor

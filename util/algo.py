@@ -58,7 +58,7 @@ def calc_gaes(
     gae_lambda=0.95
 ):
   # GAE = ∑ₗ (γλ)ˡδₜ₊ₗ
-  # δₜ₊ₗ = rₜ + γV(sₜ₊₁) − V(sₜ)
+  # δₜ₊ₗ = rₜ + γV(sₜ₊₁) − V(sₜ)  # noqa: RUF003
   T = len(rewards)  # pylint: disable=invalid-name
   device = rewards.device
   gaes = torch.zeros_like(rewards, device=device)

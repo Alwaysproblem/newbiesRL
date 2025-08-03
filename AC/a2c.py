@@ -6,8 +6,8 @@ from torch.distributions import Categorical
 from torch.nn import functional as F
 
 from util.agent import Agent
-from util.buffer import ReplayBuffer, Trajectory
 from util.algo import calc_gaes, calc_nstep_return, standardize
+from util.buffer import ReplayBuffer, Trajectory
 
 
 class Actor(nn.Module):

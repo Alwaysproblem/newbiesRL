@@ -6,7 +6,7 @@
   "pylint.path": ["conda", "run", "-n", "rltorch", "python", "-m", "pylint"],
   "yapf.args": ["--style", "${workspaceFolder}/.style.yapf"],
   "[python]": {
-    "editor.defaultFormatter": "eeyore.yapf",
+    "editor.defaultFormatter": "charliermarsh.ruff",
   },
   "editor.tokenColorCustomizations": {
     "[*Dark*]": {

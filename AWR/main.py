@@ -1,16 +1,18 @@
 """main executable file for awr"""
-import os
 import logging
-from itertools import repeat
-import gymnasium as gym
-import torch
-import numpy as np
-from util import generate_gif
-from util.wrappers import TrainMonitor
-from util.buffer import Experience, Trajectory
+import os
 from collections import deque
+from itertools import repeat
+
+import gymnasium as gym
+import numpy as np
+import torch
+
 # pylint: disable=invalid-name
 from AWR.awr import AWRAgent as AWR_torch
+from util import generate_gif
+from util.buffer import Experience, Trajectory
+from util.wrappers import TrainMonitor
 
 Agent = AWR_torch
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +32,6 @@ def main(
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
-  # pylint: disable=line-too-long
   """Deep Q-Learning
 
     Params

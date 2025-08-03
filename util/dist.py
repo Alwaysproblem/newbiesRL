@@ -21,21 +21,19 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # =============================================================================
-# pylint: disable=line-too-long,unused-argument
 # Borrow from `https://github.com/RLE-Foundation/rllte`
 """Distributions for action noise and policy."""
 
 import math
 import re
-from typing import Any, Tuple, Optional, Union
+from typing import Any
 
 import numpy as np
 import torch as th
-from torch.distributions import register_kl
 from torch import distributions as pyd
-from torch.nn import functional as F
-from torch.distributions import Distribution
+from torch.distributions import Distribution, register_kl
 from torch.distributions.utils import _standard_normal
+from torch.nn import functional as F
 
 
 def schedule(schdl: str, step: int) -> float:
@@ -113,7 +111,7 @@ class Bernoulli(BaseDistribution):
     """Returns the unnormalized log probabilities."""
     return self.dist.logits
 
-  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
 
@@ -179,7 +177,7 @@ class Categorical(BaseDistribution):
     """Returns the unnormalized log probabilities."""
     return self.dist.logits
 
-  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
 
@@ -223,7 +221,7 @@ class MultiCategorical(BaseDistribution):
   def __init__(self) -> None:
     super().__init__()
 
-  def __call__(self, logits: Tuple[th.Tensor, ...]):
+  def __call__(self, logits: tuple[th.Tensor, ...]):
     """Create the distribution.
 
         Args:
@@ -237,16 +235,16 @@ class MultiCategorical(BaseDistribution):
     return self
 
   @property
-  def probs(self) -> Tuple[th.Tensor, ...]:
+  def probs(self) -> tuple[th.Tensor, ...]:
     """Return probabilities."""
     return (dist.probs for dist in self.dist)  # type: ignore
 
   @property
-  def logits(self) -> Tuple[th.Tensor, ...]:
+  def logits(self) -> tuple[th.Tensor, ...]:
     """Returns the unnormalized log probabilities."""
     return (dist.logits for dist in self.dist)  # type: ignore
 
-  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
 
@@ -341,7 +339,7 @@ class SquashedNormal(BaseDistribution):
     )
     return self
 
-  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped sample or sample_shape shaped
             batch of samples if the distribution parameters are batched.
 
@@ -353,7 +351,7 @@ class SquashedNormal(BaseDistribution):
         """
     return self.dist.sample(sample_shape)
 
-  def rsample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def rsample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped reparameterized sample or sample_shape shaped
             batch of reparameterized samples if the distribution parameters are batched.
 
@@ -411,7 +409,7 @@ class DiagonalGaussian(BaseDistribution):
     self.dist = pyd.Normal(loc=mu, scale=sigma)
     return self
 
-  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def sample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
 
@@ -423,7 +421,7 @@ class DiagonalGaussian(BaseDistribution):
         """
     return self.dist.sample(sample_shape)
 
-  def rsample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # B008
+  def rsample(self, sample_shape: th.Size = th.Size()) -> th.Tensor:  # noqa: B008
     """Generates a sample_shape shaped reparameterized sample or sample_shape shaped batch of
             reparameterized samples if the distribution parameters are batched.
 
@@ -518,8 +516,8 @@ class NormalNoise(BaseDistribution):
 
   def __init__(
       self,
-      mu: Union[float, th.Tensor] = 0.0,
-      sigma: Union[float, th.Tensor] = 1.0,
+      mu: float | th.Tensor = 0.0,
+      sigma: float | th.Tensor = 1.0,
       low: float = -1.0,
       high: float = 1.0,
       eps: float = 1e-6,
@@ -553,8 +551,8 @@ class NormalNoise(BaseDistribution):
 
   def sample(
       self,
-      clip: Optional[float] = None,
-      sample_shape: th.Size = th.Size()
+      clip: float | None = None,
+      sample_shape: th.Size = th.Size()  # noqa: B008
   ) -> th.Tensor:  # type: ignore[override]
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
@@ -611,8 +609,8 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
 
   def __init__(
       self,
-      mu: Union[float, th.Tensor] = 0.0,
-      sigma: Union[float, th.Tensor] = 1.0,
+      mu: float | th.Tensor = 0.0,
+      sigma: float | th.Tensor = 1.0,
       low: float = -1.0,
       high: float = 1.0,
       eps: float = 1e-6,
@@ -629,7 +627,7 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
     self.eps = eps
     self.theta = theta
     self.dt = dt
-    self.noise_prev: Union[None, th.Tensor] = None
+    self.noise_prev: None | th.Tensor = None
     if sigma_schedule and isinstance(sigma, float):
       self.sigma_schedule = sigma_schedule
     else:
@@ -660,8 +658,8 @@ class OrnsteinUhlenbeckNoise(BaseDistribution):
 
   def sample(
       self,
-      clip: Optional[float] = None,
-      sample_shape: th.Size = th.Size()
+      clip: float | None = None,
+      sample_shape: th.Size = th.Size()  # noqa: B008
   ) -> th.Tensor:  # type: ignore[override]
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.
@@ -731,8 +729,8 @@ class TruncatedNormalNoise(BaseDistribution):
 
   def __init__(
       self,
-      mu: Union[float, th.Tensor] = 0.0,
-      sigma: Union[float, th.Tensor] = 1.0,
+      mu: float | th.Tensor = 0.0,
+      sigma: float | th.Tensor = 1.0,
       low: float = -1.0,
       high: float = 1.0,
       eps: float = 1e-6,
@@ -769,8 +767,8 @@ class TruncatedNormalNoise(BaseDistribution):
 
   def sample(
       self,
-      clip: Optional[float] = None,
-      sample_shape: th.Size = th.Size()
+      clip: float | None = None,
+      sample_shape: th.Size = th.Size()  # noqa: B008
   ) -> th.Tensor:  # type: ignore[override]
     """Generates a sample_shape shaped sample or sample_shape shaped batch of
             samples if the distribution parameters are batched.

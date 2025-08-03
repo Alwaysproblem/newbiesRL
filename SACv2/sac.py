@@ -3,10 +3,10 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from util.buffer import ReplayBuffer
+
 from util.agent import Agent
-from util.buffer import Experience
-from util.dist import SquashedNormal, DiagonalGaussian
+from util.buffer import Experience, ReplayBuffer
+from util.dist import DiagonalGaussian, SquashedNormal
 
 
 class Actor(nn.Module):
@@ -20,7 +20,7 @@ class Actor(nn.Module):
       fc1_unit=64,
       fc2_unit=64,
       max_action=1,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_policy_weight_gain=1,
       init_bias=0
   ):
@@ -81,7 +81,7 @@ class Critic(nn.Module):
       seed=0,
       fc1_unit=64,
       fc2_unit=64,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_bias=0
   ):
     """
@@ -277,7 +277,7 @@ class SACv2Agent(Agent):
     min_target_q_value = torch.min(target_q, target_q_1)
 
     # Compute the target Value with
-    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]
+    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]  # noqa: RUF003
     target_v = min_target_q_value - self.log_alpha.exp().detach() * log_prob
     target_q = rewards + ((1 - terminate) * self.gamma * target_v).detach()
 
@@ -306,7 +306,7 @@ class SACv2Agent(Agent):
 
     min_target_q_value = torch.min(target_q, target_q_1)
 
-    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]
+    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]  # noqa: RUF003
     actor_loss = (
         self.log_alpha.exp().detach() * log_prob - min_target_q_value
     ).mean()
@@ -325,7 +325,6 @@ class SACv2Agent(Agent):
       self.alpha_optimizer.step()
 
   def _learn(self, experiences):
-    # pylint: disable=line-too-long
     """Update value parameters using given batch of experience tuples.
         Params
         =======

@@ -1,16 +1,18 @@
 """main executable file for TD3"""
-import os
 import logging
-from itertools import repeat
-import gymnasium as gym
-import torch
-import numpy as np
-from util import generate_gif
-from util.wrappers import TrainMonitor
-from util.buffer import Experience
+import os
 from collections import deque
+from itertools import repeat
+
+import gymnasium as gym
+import numpy as np
+import torch
+
 # pylint: disable=invalid-name
 from TD3.td3 import TD3Agent as TD3_torch
+from util import generate_gif
+from util.buffer import Experience
+from util.wrappers import TrainMonitor
 
 Agent = TD3_torch
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +32,6 @@ def main(
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
-  # pylint: disable=line-too-long
   """Deep Q-Learning
 
     Params

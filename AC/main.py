@@ -1,16 +1,18 @@
 """main executable file for A2C"""
-import os
 import logging
-from itertools import repeat
-import gymnasium as gym
-import torch
-import numpy as np
-from util import generate_gif
-from util.wrappers import TrainMonitor
-from util.buffer import Experience, Trajectory
+import os
 from collections import deque
+from itertools import repeat
+
+import gymnasium as gym
+import numpy as np
+import torch
+
 # pylint: disable=invalid-name
 from AC.a2c import A2CAgent as A2C_torch
+from util import generate_gif
+from util.buffer import Experience, Trajectory
+from util.wrappers import TrainMonitor
 
 Agent = A2C_torch
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +21,6 @@ torch.manual_seed(0)
 np.random.seed(0)
 
 EPSILON_DECAY_STEPS = 100
-
 
 def main(
     n_episodes=20000,
@@ -30,7 +31,6 @@ def main(
     score_term_rules=lambda s: False,
     time_interval="25ms"
 ):
-  # pylint: disable=line-too-long
   """Deep Q-Learning
 
     Params
