@@ -1,5 +1,4 @@
 """Sum Tree data structure for Prioritized Experience Replay."""
-# pylint: disable=line-too-long
 # Copy from https://github.com/Howuhh/prioritized_experience_replay/blob/main/memory/tree.py
 # The ‘sum-tree’ data structure used here is very similar in spirit to the array representation
 # of a binary heap. However, instead of the usual heap property, the value of a parent node is

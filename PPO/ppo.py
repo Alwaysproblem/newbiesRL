@@ -6,8 +6,8 @@ from torch.distributions import Categorical
 from torch.nn import functional as F
 
 from util.agent import Agent
-from util.buffer import ReplayBuffer, Trajectory
 from util.algo import calc_gaes, calc_nstep_return, standardize
+from util.buffer import ReplayBuffer, Trajectory
 
 
 class Actor(nn.Module):
@@ -20,7 +20,7 @@ class Actor(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_policy_weight_gain=0.01,
       init_bias=0
   ):
@@ -68,7 +68,7 @@ class Critic(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_value_weight_gain=1,
       init_bias=0
   ):

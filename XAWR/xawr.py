@@ -1,5 +1,6 @@
 """AWR implementation with pytorch."""
 from functools import partial
+
 import numpy as np
 import torch
 from torch import nn
@@ -7,9 +8,13 @@ from torch.distributions import Categorical
 from torch.nn import functional as F
 
 from util.agent import Agent
+from util.algo import (  # pylint: disable=unused-import
+  gumbel_rescale_loss,
+  scale_down_values,
+  scale_up_values,
+  standardize,
+)
 from util.buffer import ReplayBuffer, Trajectory
-from util.algo import standardize, scale_down_values, scale_up_values
-from util.algo import gumbel_rescale_loss, gumbel_loss  # pylint: disable=unused-import
 
 
 class Actor(nn.Module):
@@ -22,7 +27,7 @@ class Actor(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_policy_weight_gain=0.01,
       init_bias=0
   ):
@@ -72,7 +77,7 @@ class Critic(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_value_weight_gain=1,
       init_bias=0
   ):

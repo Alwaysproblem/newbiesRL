@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from util.buffer import ReplayBuffer
+
 from util.agent import Agent
-from util.buffer import Experience
+from util.buffer import Experience, ReplayBuffer
 from util.dist import OrnsteinUhlenbeckNoise
 
 
@@ -20,7 +20,7 @@ class Actor(nn.Module):
       fc1_unit=64,
       fc2_unit=64,
       max_action=1,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_policy_weight_gain=1,
       init_bias=0
   ):
@@ -73,7 +73,7 @@ class Critic(nn.Module):
       seed=0,
       fc1_unit=64,
       fc2_unit=64,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_bias=0
   ):
     """
@@ -249,7 +249,6 @@ class TD3Agent(Agent):
     self.memory.enqueue(scenario)
 
   def _learn(self, experiences):
-    # pylint: disable=line-too-long
     """Update value parameters using given batch of experience tuples.
         Params
         =======

@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
+
 from util.agent import Agent
-from util.buffer import Experience
-from util.buffer import ProportionalPrioritizedReplayBuffer
+from util.buffer import Experience, ProportionalPrioritizedReplayBuffer
 
 
 class Q(nn.Module):
@@ -115,7 +115,6 @@ class DQNAgent(Agent):
     self.memory.enqueue(scenario)
 
   def _learn(self, experiences):
-    # pylint: disable=line-too-long
     """Update value parameters using given batch of experience tuples.
         Params
         =======
@@ -179,5 +178,5 @@ class DQNAgent(Agent):
     )
     self.optimizer.step()
 
-  def update_targe_q(self):
+  def update_target_q(self):
     self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())

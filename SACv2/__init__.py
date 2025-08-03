@@ -1,1 +1,1 @@
-# pylint: disable=all
+# noqa: N999

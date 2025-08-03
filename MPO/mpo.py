@@ -2,8 +2,7 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import kl_divergence
-from torch.distributions import Categorical
+from torch.distributions import Categorical, kl_divergence
 from torch.nn import functional as F
 
 from util.agent import Agent
@@ -22,7 +21,7 @@ class Actor(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_policy_weight_gain=0.01,
       init_bias=0
   ):
@@ -70,7 +69,7 @@ class Critic(nn.Module):
       seed=0,
       fc1_unit=256,
       fc2_unit=256,
-      init_weight_gain=np.sqrt(2),
+      init_weight_gain=np.sqrt(2),  # noqa: B008
       init_value_weight_gain=1,
       init_bias=0
   ):
@@ -297,7 +296,6 @@ class MPOAgent(Agent):
     kl = torch.clamp(kl, min=self.kl_clip_min, max=self.kl_clip_max)
 
     if self.kl_alpha_scaler > 0:
-      # pylint: disable=line-too-long
       # Update lagrange multipliers by gradient descent
       # this equation is derived from last eq of [2] p.5,
       # just differentiate with respect to α
@@ -308,7 +306,6 @@ class MPOAgent(Agent):
       self.kl_alpha = torch.clamp(
           self.kl_alpha, min=1e-8, max=self.kl_alpha_max
       )
-    # pylint: disable=line-too-long
     # max_θ min_α L(θ,η) = Σₖ Σₙ qₙₖ * log(πθ(aₙ|sₖ)) + α * (ε - Σₖ 1/K * KL(πₖ(a|sₖ)||πθ(a|sₖ)))
     # pylint: enable=line-too-long
     policy_loss = -(policy_loss + self.kl_alpha * (self.kl_epsilon - kl))

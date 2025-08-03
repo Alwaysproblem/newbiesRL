@@ -1,21 +1,21 @@
 """Some wrappers for gymnasium environment."""
+
+import datetime
 import os
 import re
-import datetime
 import time
 from collections import deque
-from typing import Mapping
+from collections.abc import Mapping
 
 import numpy as np
 from gymnasium import Wrapper
 from gymnasium.spaces import Discrete
 from tensorboardX import SummaryWriter
 
-__all__ = ('TrainMonitor', )
+__all__ = ("TrainMonitor",)
 
 
 class StreamingSample:
-  # pylint: disable=line-too-long
   """Samples are being produced by a wrapped environment at some point in time."""
 
   def __init__(self, maxlen, random_seed=None):
@@ -50,9 +50,8 @@ class StreamingSample:
     return bool(self._deque)
 
 
-#pylint: disable=invalid-name
+# pylint: disable=invalid-name
 class TrainMonitor(Wrapper):
-  # pylint: disable=line-too-long
   r"""
     Environment wrapper for monitoring the training process.
     This wrapper logs some diagnostics at the end of each episode and it also gives us some handy
@@ -100,20 +99,29 @@ class TrainMonitor(Wrapper):
     dt_ms : float
         The average wall time of a single step, in milliseconds.
     """
+
   _COUNTER_ATTRS = (
-      'T', 'ep', 't', 'G', 'avg_G', '_n_avg_G', '_ep_starttime', '_ep_metrics',
-      '_ep_actions', '_tensorboard_dir', '_period'
+    "T",
+    "ep",
+    "t",
+    "G",
+    "avg_G",
+    "_n_avg_G",
+    "_ep_starttime",
+    "_ep_metrics",
+    "_ep_actions",
+    "_tensorboard_dir",
+    "_period",
   )
 
   def __init__(
-      self,
-      env,
-      tensorboard_dir=None,
-      tensorboard_write_all=False,
-      log_all_metrics=False,
-      smoothing=10
+    self,
+    env,
+    tensorboard_dir=None,
+    tensorboard_write_all=False,
+    log_all_metrics=False,
+    smoothing=10,
   ):
-
     super().__init__(env)
     self.log_all_metrics = log_all_metrics
     self.tensorboard_write_all = tensorboard_write_all
@@ -122,7 +130,7 @@ class TrainMonitor(Wrapper):
     self._init_tensorboard(tensorboard_dir)
 
   def reset_global(self):
-    r""" Reset the global counters, not just the episodic ones. """
+    r"""Reset the global counters, not just the episodic ones."""
     self.T = 0
     self.ep = 0
     self.t = 0
@@ -132,7 +140,7 @@ class TrainMonitor(Wrapper):
     self._ep_starttime = time.time()
     self._ep_metrics = {}
     self._ep_actions = StreamingSample(maxlen=1000)
-    self._period = {'T': {}, 'ep': {}}
+    self._period = {"T": {}, "ep": {}}
 
   def reset(self):
     # write logs from previous episode:
@@ -170,77 +178,77 @@ class TrainMonitor(Wrapper):
 
     if info is None:
       info = {}
-    info['monitor'] = {'T': self.T, 'ep': self.ep}
+    info["monitor"] = {"T": self.T, "ep": self.ep}
     self.t += 1
     self.T += 1
     self.G += r
     if done:
       if self._n_avg_G < self.smoothing:
-        self._n_avg_G += 1.
+        self._n_avg_G += 1.0
       self.avg_G += (self.G - self.avg_G) / self._n_avg_G
 
     return s_next, r, done, truncated, info
 
   def record_metrics(self, metrics):
     r"""
-        Record metrics during the training process.
-        These are used to print more diagnostics.
-        Parameters
-        ----------
-        metrics : dict
-            A dict of metrics, of type ``{name <str>: value <float>}``.
-        """
+    Record metrics during the training process.
+    These are used to print more diagnostics.
+    Parameters
+    ----------
+    metrics : dict
+        A dict of metrics, of type ``{name <str>: value <float>}``.
+    """
     if not isinstance(metrics, Mapping):
-      raise TypeError('metrics must be a Mapping')
+      raise TypeError("metrics must be a Mapping")
 
     # write metrics to tensoboard
     if self.tensorboard is not None and self.tensorboard_write_all:
       for name, metric in metrics.items():
         self.tensorboard.add_scalar(
-            str(name), float(metric), global_step=self.T
+          str(name), float(metric), global_step=self.T
         )
 
     # compute episode averages
     for k, v in metrics.items():
       if k not in self._ep_metrics:
-        self._ep_metrics[k] = v, 1.
+        self._ep_metrics[k] = v, 1.0
       else:
         x, n = self._ep_metrics[k]
         self._ep_metrics[k] = x + v, n + 1
 
   def get_metrics(self):
     r"""
-        Return the current state of the metrics.
-        Returns
-        -------
-        metrics : dict
-            A dict of metrics, of type ``{name <str>: value <float>}``.
-        """
+    Return the current state of the metrics.
+    Returns
+    -------
+    metrics : dict
+        A dict of metrics, of type ``{name <str>: value <float>}``.
+    """
     return {k: float(x) / n for k, (x, n) in self._ep_metrics.items()}
 
   def period(self, name, T_period=None, ep_period=None):
     if T_period is not None:
       T_period = int(T_period)
       assert T_period > 0
-      if name not in self._period['T']:
-        self._period['T'][name] = 1
-      if self.T >= self._period['T'][name] * T_period:
-        self._period['T'][name] += 1
+      if name not in self._period["T"]:
+        self._period["T"][name] = 1
+      if self.T >= self._period["T"][name] * T_period:
+        self._period["T"][name] += 1
         return True or self.period(name, None, ep_period)
       return self.period(name, None, ep_period)
     if ep_period is not None:
       ep_period = int(ep_period)
       assert ep_period > 0
-      if name not in self._period['ep']:
-        self._period['ep'][name] = 1
-      if self.ep >= self._period['ep'][name] * ep_period:
-        self._period['ep'][name] += 1
+      if name not in self._period["ep"]:
+        self._period["ep"][name] = 1
+      if self.ep >= self._period["ep"][name] * ep_period:
+        self._period["ep"][name] += 1
         return True
     return False
 
   @property
   def tensorboard(self):
-    if not hasattr(self, '_tensorboard'):
+    if not hasattr(self, "_tensorboard"):
       assert self._tensorboard_dir is not None
       self._tensorboard = SummaryWriter(self._tensorboard_dir)
     return self._tensorboard
@@ -252,40 +260,39 @@ class TrainMonitor(Wrapper):
       return
 
     # append timestamp to disambiguate instances
-    if not re.match(r'.*/\d{8}_\d{6}$', tensorboard_dir):
+    if not re.match(r".*/\d{8}_\d{6}$", tensorboard_dir):
       tensorboard_dir = os.path.join(
-          tensorboard_dir,
-          datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        tensorboard_dir, datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
       )
 
     # only set/update if necessary
-    if tensorboard_dir != getattr(self, '_tensorboard_dir', None):
+    if tensorboard_dir != getattr(self, "_tensorboard_dir", None):
       self._tensorboard_dir = tensorboard_dir
-      if hasattr(self, '_tensorboard'):
+      if hasattr(self, "_tensorboard"):
         del self._tensorboard
 
     if self.tensorboard is not None:
       metrics = {
-          'episode/episode': self.ep,
-          'episode/avg_reward': self.avg_r,
-          'episode/return': self.G,
-          'episode/steps': self.t,
-          'episode/avg_step_duration_ms': self.dt_ms
+        "episode/episode": self.ep,
+        "episode/avg_reward": self.avg_r,
+        "episode/return": self.G,
+        "episode/steps": self.t,
+        "episode/avg_step_duration_ms": self.dt_ms,
       }
       for name, metric in metrics.items():
         self.tensorboard.add_scalar(
-            str(name), float(metric), global_step=self.T
+          str(name), float(metric), global_step=self.T
         )
       if self._ep_actions:
         if isinstance(self.action_space, Discrete):
           bins = np.arange(self.action_space.n + 1)
         else:
-          bins = 'auto'  # see also: np.histogram_bin_edges.__doc__
+          bins = "auto"  # see also: np.histogram_bin_edges.__doc__
         self.tensorboard.add_histogram(
-            tag='actions',
-            values=self._ep_actions.values,
-            global_step=self.T,
-            bins=bins
+          tag="actions",
+          values=self._ep_actions.values,
+          global_step=self.T,
+          bins=bins,
         )
       if self._ep_metrics and not self.tensorboard_write_all:
         for k, (x, n) in self._ep_metrics.items():
@@ -294,36 +301,39 @@ class TrainMonitor(Wrapper):
 
   def _write_episode_logs(self):
     metrics = (
-        f'{k:s}: {float(x) / n:.3g}' for k, (x, n) in self._ep_metrics.items()
-        if (
-            self.log_all_metrics or str(k).endswith('/loss')
-            or str(k).endswith('/entropy') or str(k).endswith('/kl_div')
-            or str(k).startswith('throughput/')
-        )
+      f"{k:s}: {float(x) / n:.3g}"
+      for k, (x, n) in self._ep_metrics.items()
+      if (
+        self.log_all_metrics
+        or str(k).endswith("/loss")
+        or str(k).endswith("/entropy")
+        or str(k).endswith("/kl_div")
+        or str(k).startswith("throughput/")
+      )
     )
 
     if self.tensorboard is not None:
       metrics = {
-          'episode/episode': self.ep,
-          'episode/avg_reward': self.avg_r,
-          'episode/return': self.G,
-          'episode/steps': self.t,
-          'episode/avg_step_duration_ms': self.dt_ms
+        "episode/episode": self.ep,
+        "episode/avg_reward": self.avg_r,
+        "episode/return": self.G,
+        "episode/steps": self.t,
+        "episode/avg_step_duration_ms": self.dt_ms,
       }
       for name, metric in metrics.items():
         self.tensorboard.add_scalar(
-            str(name), float(metric), global_step=self.T
+          str(name), float(metric), global_step=self.T
         )
       if self._ep_actions:
         if isinstance(self.action_space, Discrete):
           bins = np.arange(self.action_space.n + 1)
         else:
-          bins = 'auto'  # see also: np.histogram_bin_edges.__doc__
+          bins = "auto"  # see also: np.histogram_bin_edges.__doc__
         self.tensorboard.add_histogram(
-            tag='actions',
-            values=self._ep_actions.values,
-            global_step=self.T,
-            bins=bins
+          tag="actions",
+          values=self._ep_actions.values,
+          global_step=self.T,
+          bins=bins,
         )
       if self._ep_metrics and not self.tensorboard_write_all:
         for k, (x, n) in self._ep_metrics.items():
@@ -332,35 +342,34 @@ class TrainMonitor(Wrapper):
 
   def __getstate__(self):
     state = self.__dict__.copy()  # shallow copy
-    if '_tensorboard' in state:
-      del state['_tensorboard']  # remove reference to non-pickleable attr
+    if "_tensorboard" in state:
+      del state["_tensorboard"]  # remove reference to non-pickleable attr
     return state
 
   def __setstate__(self, state):
     self.__dict__.update(state)
-    self._init_tensorboard(state['_tensorboard_dir'])
+    self._init_tensorboard(state["_tensorboard_dir"])
 
   def get_counters(self):
     r"""
-        Get the current state of all internal counters.
-        Returns
-        -------
-        counter : dict
-            The dict that contains the counters.
-        """
+    Get the current state of all internal counters.
+    Returns
+    -------
+    counter : dict
+        The dict that contains the counters.
+    """
     return {k: getattr(self, k) for k in self._COUNTER_ATTRS}
 
   def set_counters(self, counters):
     r"""
-        Restore the state of all internal counters.
-        Parameters
-        ----------
-        counter : dict
-            The dict that contains the counters.
-        """
+    Restore the state of all internal counters.
+    Parameters
+    ----------
+    counter : dict
+        The dict that contains the counters.
+    """
     if not (
-        isinstance(counters, dict)
-        and set(counters) == set(self._COUNTER_ATTRS)
+      isinstance(counters, dict) and set(counters) == set(self._COUNTER_ATTRS)
     ):
-      raise TypeError(f'invalid counters dict: {counters}')
+      raise TypeError(f"invalid counters dict: {counters}")
     self.__setstate__(counters)

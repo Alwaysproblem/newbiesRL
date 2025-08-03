@@ -1,7 +1,7 @@
 """The basic frame for Agent"""
 
 
-class Agent():
+class Agent:
   """The basic class for agent"""
 
   def __call__(self, *args, **kwds):
