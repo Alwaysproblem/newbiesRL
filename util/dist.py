@@ -21,7 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 # =============================================================================
-# ,unused-argument
 # Borrow from `https://github.com/RLE-Foundation/rllte`
 """Distributions for action noise and policy."""
 

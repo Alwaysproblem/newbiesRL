@@ -1,4 +1,4 @@
-target-version = "py310"
+target-version = "py312"
 line-length = 108
 indent-width = 2
 respect-gitignore = true
