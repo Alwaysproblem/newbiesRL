@@ -339,7 +339,7 @@ class XSACAgent(Agent):
     min_target_q_value = torch.min(current_q, current_q_1)
 
     # Compute the target Value with
-    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]
+    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]  # noqa: RUF003
     target_v = min_target_q_value - self.log_alpha.exp().detach() * log_prob
 
     # Compute value loss
@@ -351,7 +351,7 @@ class XSACAgent(Agent):
     self.value_optimizer.step()
 
     # Compute the target Q with
-    # JQ(θ)=E (sₜ₊₁, aₜ₊₁)∼D [ 1/2 (Q(st,at)− r(st,at)+γE sₜ₊₁∼p [V(st+1)])² ]
+    # JQ(θ)=E (sₜ₊₁, aₜ₊₁)∼D [ 1/2 (Q(st,at)− r(st,at)+γE sₜ₊₁∼p [V(st+1)])² ]  # noqa: RUF003
     target_v = self.value_target.forward(next_states)
     target_q = rewards + ((1 - terminate) * self.gamma * target_v).detach()
 
@@ -377,7 +377,7 @@ class XSACAgent(Agent):
 
     min_target_q_value = torch.min(target_q, target_q_1)
 
-    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]
+    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]  # noqa: RUF003
     actor_loss = (
         self.log_alpha.exp().detach() * log_prob - min_target_q_value
     ).mean()

@@ -152,7 +152,7 @@ class DQNAgent(Agent):
     )
 
     with torch.no_grad():
-      # r + (1 − done) × γ × max(Q(state))
+      # r + (1 − done) × γ × max(Q(state))  # noqa: RUF003
       labels = rewards + (1 - terminate) * self.gamma * torch.max(
           self.qnetwork_target.forward(next_states).detach(),
           dim=1,

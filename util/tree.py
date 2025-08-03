@@ -1,6 +1,6 @@
 """Sum Tree data structure for Prioritized Experience Replay."""
 # Copy from https://github.com/Howuhh/prioritized_experience_replay/blob/main/memory/tree.py
-# The ‘sum-tree’ data structure used here is very similar in spirit to the array representation
+# The `sum-tree` data structure used here is very similar in spirit to the array representation
 # of a binary heap. However, instead of the usual heap property, the value of a parent node is
 # the sum of its children. Leaf nodes store the transition priorities and the internal nodes are
 # intermediate sums, with the parent node containing the sum over all priorities, p_total. This

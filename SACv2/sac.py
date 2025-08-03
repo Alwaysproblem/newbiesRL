@@ -277,7 +277,7 @@ class SACv2Agent(Agent):
     min_target_q_value = torch.min(target_q, target_q_1)
 
     # Compute the target Value with
-    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]
+    # V (sₜ₊₁) = E aₜ∼π [Q(sₜ₊₁, aₜ₊₁) − α log π(aₜ₊₁|sₜ₊₁)]  # noqa: RUF003
     target_v = min_target_q_value - self.log_alpha.exp().detach() * log_prob
     target_q = rewards + ((1 - terminate) * self.gamma * target_v).detach()
 
@@ -306,7 +306,7 @@ class SACv2Agent(Agent):
 
     min_target_q_value = torch.min(target_q, target_q_1)
 
-    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]
+    # Jπ(φ)=E sₜ∼D [E aₜ∼π [αlog(π(aₜ|sₜ))−Qᶿ(sₜ, aₜ)]]  # noqa: RUF003
     actor_loss = (
         self.log_alpha.exp().detach() * log_prob - min_target_q_value
     ).mean()

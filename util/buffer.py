@@ -107,7 +107,7 @@ class ReplayBuffer:
   def enqueue(self, sample):
     if not self.isfull():
       return self.q.append(sample)
-    warnings.warn("the buffer is full, the first sample will be dropped.")
+    warnings.warn("the buffer is full, the first sample will be dropped.", stacklevel=2)
     self._dequeue()
     return self.q.append(sample)
 
@@ -162,7 +162,7 @@ class ProportionalPrioritizedReplayBuffer:
     # minimal priority, prevents zero probabilities
     self.eps = eps
     # determines how much prioritization is used
-    # α = 0 corresponding to the uniform case
+    # α = 0 corresponding to the uniform case  # noqa: RUF003
     self.alpha = alpha
     # determines the amount of importance-sampling correction,
     # β = 1 fully compensate for the non-uniform probabilities
@@ -197,7 +197,8 @@ class ProportionalPrioritizedReplayBuffer:
 
     # To sample a minibatch of size k, the range [0, p_total] is divided equally into k ranges.
     # Next, a value is uniformly sampled from each range. Finally the transitions that correspond
-    # to each of these sampled values are retrieved from the tree. (Appendix B.2.1, Proportional prioritization)
+    # to each of these sampled values are retrieved from the tree.
+    # (Appendix B.2.1, Proportional prioritization)
     segment = self.tree.total / num_samples
     for i in range(num_samples):
       a, b = segment * i, segment * (i + 1)
@@ -211,7 +212,7 @@ class ProportionalPrioritizedReplayBuffer:
       indices.append(index)
       samples.append(sample_idx)
 
-    # Concretely, we define the probability of sampling transition i as P(i) = p_i^α / \sum_{k} p_k^α
+    # Concretely, we define the probability of sampling transition i as P(i) = p_i^α / \sum_{k} p_k^α  # noqa: RUF003, E501
     # where p_i > 0 is the priority of transition i. (Section 3.3)
     probs = priorities / self.tree.total
 
